@@ -28,7 +28,9 @@ export default function Home() {
     const [horoscope, setHoroscope] = useState(null)
     const [horoscopeInferenceLoading, setHoroscopeInferenceLoading] = useState(false)
     const [defaultLocation, setDefaultLocation] = useState(FALLBACK_LOCATION)
-    const [loading, setLoading] = useState(true)
+    const [weatherLoading, setWeatherLoading] = useState(true)
+    const [wardrobeLoading, setWardrobeLoading] = useState(true)
+    const [horoscopeLoading, setHoroscopeLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
     const [activeIndex, setActiveIndex] = useState(0)
@@ -88,26 +90,26 @@ export default function Home() {
         }
     }
 
-    const fetchDashboard = async (withLoading = true, location = defaultLocation) => {
-        if (withLoading) {
-            setLoading(true)
-        } else {
-            setRefreshing(true)
-        }
-
+    const fetchWeather = async (location) => {
+        setWeatherLoading(true)
         try {
-            const [weatherRes, wardrobeRes, horoscopeData] = await Promise.all([
-                fetch(`${API_BASE}/weather?location=${encodeURIComponent(location)}`),
-                fetch(`${API_BASE}/wardrobe`),
-                fetchHoroscope(location, false)
-            ])
-
-            if (weatherRes.ok) {
-                setWeather(await weatherRes.json())
+            const response = await fetch(`${API_BASE}/weather?location=${encodeURIComponent(location)}`)
+            if (response.ok) {
+                setWeather(await response.json())
             }
+        } catch (error) {
+            console.error('Failed to fetch weather:', error)
+        } finally {
+            setWeatherLoading(false)
+        }
+    }
 
-            if (wardrobeRes.ok) {
-                const data = await wardrobeRes.json()
+    const fetchWardrobe = async () => {
+        setWardrobeLoading(true)
+        try {
+            const response = await fetch(`${API_BASE}/wardrobe`)
+            if (response.ok) {
+                const data = await response.json()
                 setWardrobe({
                     tops: data.tops || [],
                     bottoms: data.bottoms || [],
@@ -115,22 +117,50 @@ export default function Home() {
                     accessories: data.accessories || []
                 })
             }
+        } catch (error) {
+            console.error('Failed to fetch wardrobe:', error)
+        } finally {
+            setWardrobeLoading(false)
+        }
+    }
 
-            if (horoscopeData) {
-                setHoroscope(horoscopeData)
-                const shouldInfer = horoscopeData.llm_status === 'pending'
-                if (horoscopeData.is_configured && shouldInfer) {
+    const fetchHoroscopeData = async (location) => {
+        setHoroscopeLoading(true)
+        try {
+            const data = await fetchHoroscope(location, false)
+            if (data) {
+                setHoroscope(data)
+                const shouldInfer = data.llm_status === 'pending'
+                if (data.is_configured && shouldInfer) {
                     void runHoroscopeInference(location)
                 } else {
                     setHoroscopeInferenceLoading(false)
                 }
             }
         } catch (error) {
-            console.error('Failed to fetch home dashboard:', error)
+            console.error('Failed to fetch horoscope:', error)
         } finally {
-            setLoading(false)
-            setRefreshing(false)
+            setHoroscopeLoading(false)
         }
+    }
+
+    const fetchDashboard = async (withLoading = true, location = defaultLocation) => {
+        if (withLoading) {
+            setWeatherLoading(true)
+            setWardrobeLoading(true)
+            setHoroscopeLoading(true)
+        } else {
+            setRefreshing(true)
+        }
+
+        // 并行独立加载，不等待其他数据
+        Promise.all([
+            fetchWeather(location),
+            fetchWardrobe(),
+            fetchHoroscopeData(location)
+        ]).finally(() => {
+            setRefreshing(false)
+        })
     }
 
     useEffect(() => {
@@ -184,24 +214,24 @@ export default function Home() {
                 </div>
             </header>
 
-            {loading ? (
-                <div className="px-4 py-12 flex flex-col items-center justify-center relative z-10">
-                    <div className="w-10 h-10 border-4 border-zinc-200 dark:border-zinc-700 border-t-accent rounded-full animate-spin"></div>
-                    <p className="text-sm text-zinc-500 mt-4">{t('home.loading')}</p>
-                </div>
-            ) : (
-                <main className="px-4 space-y-4 relative z-10">
-                    <section className="card p-4 sm:p-5">
-                        <div className="flex items-center justify-between">
-                            <h2 className={sectionTitleClass}>
-                                <CloudSun size={18} className="text-accent" />
-                                {t('home.weatherTitle')}
-                            </h2>
-                            <span className="text-[11px] px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
-                                {weather?.icon || '--'}
-                            </span>
-                        </div>
+            <main className="px-4 space-y-4 relative z-10">
+                {/* 天气 Section - 独立加载 */}
+                <section className="card p-4 sm:p-5">
+                    <div className="flex items-center justify-between">
+                        <h2 className={sectionTitleClass}>
+                            <CloudSun size={18} className="text-accent" />
+                            {t('home.weatherTitle')}
+                        </h2>
+                        <span className="text-[11px] px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                            {weather?.icon || (weatherLoading ? '...' : '--')}
+                        </span>
+                    </div>
 
+                    {weatherLoading ? (
+                        <div className="mt-3 flex items-center justify-center py-4">
+                            <div className="w-6 h-6 border-3 border-zinc-200 dark:border-zinc-700 border-t-accent rounded-full animate-spin"></div>
+                        </div>
+                    ) : (
                         <div className="mt-3 flex items-end justify-between">
                             <div>
                                 <div className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
@@ -226,157 +256,171 @@ export default function Home() {
                                 </div>
                             </div>
                         </div>
-                    </section>
+                    )}
+                </section>
 
-                    <section className="card p-4 sm:p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className={sectionTitleClass}>
-                                <Shirt size={18} className="text-accent" />
-                                {t('home.carouselTitle')}
-                            </h2>
+                {/* 衣柜 carousel - 独立加载 */}
+                <section className="card p-4 sm:p-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className={sectionTitleClass}>
+                            <Shirt size={18} className="text-accent" />
+                            {t('home.carouselTitle')}
+                        </h2>
+                        <button
+                            className="text-xs px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-accent cursor-pointer transition-colors"
+                            onClick={() => navigate('/wardrobe')}
+                        >
+                            {t('home.viewAll')}
+                        </button>
+                    </div>
+
+                    {wardrobeLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="w-6 h-6 border-3 border-zinc-200 dark:border-zinc-700 border-t-accent rounded-full animate-spin"></div>
+                        </div>
+                    ) : carouselItems.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-800/40 p-8 text-center">
+                            <p className="text-sm text-zinc-500">{t('home.emptyWardrobe')}</p>
                             <button
-                                className="text-xs px-2.5 py-1 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-accent cursor-pointer transition-colors"
-                                onClick={() => navigate('/wardrobe')}
+                                className="mt-3 inline-flex items-center gap-1.5 text-sm text-accent hover:opacity-80 cursor-pointer"
+                                onClick={() => navigate('/entry')}
                             >
-                                {t('home.viewAll')}
+                                {t('home.goEntry')}
+                                <ArrowRight size={14} />
                             </button>
                         </div>
-
-                        {carouselItems.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-800/40 p-8 text-center">
-                                <p className="text-sm text-zinc-500">{t('home.emptyWardrobe')}</p>
-                                <button
-                                    className="mt-3 inline-flex items-center gap-1.5 text-sm text-accent hover:opacity-80 cursor-pointer"
-                                    onClick={() => navigate('/entry')}
+                    ) : (
+                        <div className="relative">
+                            <div className="overflow-hidden rounded-xl bg-zinc-50/80 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700">
+                                <div
+                                    className="flex transition-transform duration-500 ease-out"
+                                    style={{ transform: `translateX(-${activeIndex * 100}%)` }}
                                 >
-                                    {t('home.goEntry')}
-                                    <ArrowRight size={14} />
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="relative">
-                                <div className="overflow-hidden rounded-xl bg-zinc-50/80 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700">
-                                    <div
-                                        className="flex transition-transform duration-500 ease-out"
-                                        style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-                                    >
-                                        {carouselItems.map(item => (
-                                            <article key={item.id} className="w-full shrink-0 p-4">
-                                                <div className="flex gap-4 items-center">
-                                                    <div className="w-24 h-24 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-2 flex items-center justify-center">
-                                                        <img
-                                                            src={toImageUrl(item.image_url)}
-                                                            alt={item.item}
-                                                            className="w-full h-full object-contain"
-                                                        />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{item.item}</h3>
-                                                        <p className="text-xs text-zinc-500 mt-1">{getCategoryLabel(item.category)}</p>
-                                                        {item.description ? (
-                                                            <p className="text-xs text-zinc-500 mt-2 line-clamp-2">{item.description}</p>
-                                                        ) : (
-                                                            <p className="text-xs text-zinc-400 mt-2">{t('home.noDescription')}</p>
-                                                        )}
-                                                    </div>
+                                    {carouselItems.map(item => (
+                                        <article key={item.id} className="w-full shrink-0 p-4">
+                                            <div className="flex gap-4 items-center">
+                                                <div className="w-24 h-24 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-2 flex items-center justify-center">
+                                                    <img
+                                                        src={toImageUrl(item.image_url)}
+                                                        alt={item.item}
+                                                        className="w-full h-full object-contain"
+                                                    />
                                                 </div>
-                                            </article>
-                                        ))}
-                                    </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{item.item}</h3>
+                                                    <p className="text-xs text-zinc-500 mt-1">{getCategoryLabel(item.category)}</p>
+                                                    {item.description ? (
+                                                        <p className="text-xs text-zinc-500 mt-2 line-clamp-2">{item.description}</p>
+                                                    ) : (
+                                                        <p className="text-xs text-zinc-400 mt-2">{t('home.noDescription')}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </article>
+                                    ))}
                                 </div>
+                            </div>
 
-                                {carouselItems.length > 1 && (
-                                    <>
+                            {carouselItems.length > 1 && (
+                                <>
+                                    <button
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-accent transition-colors cursor-pointer"
+                                        onClick={() => setActiveIndex(prev => (prev > 0 ? prev - 1 : carouselItems.length - 1))}
+                                        aria-label={t('home.previous')}
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    <button
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-accent transition-colors cursor-pointer"
+                                        onClick={() => setActiveIndex(prev => (prev < carouselItems.length - 1 ? prev + 1 : 0))}
+                                        aria-label={t('home.next')}
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </>
+                            )}
+
+                            {carouselItems.length > 1 && (
+                                <div className="flex items-center justify-center gap-1.5 mt-3">
+                                    {carouselItems.map((_, idx) => (
                                         <button
-                                            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-accent transition-colors cursor-pointer"
-                                            onClick={() => setActiveIndex(prev => (prev > 0 ? prev - 1 : carouselItems.length - 1))}
-                                            aria-label={t('home.previous')}
-                                        >
-                                            <ChevronLeft size={16} />
-                                        </button>
-                                        <button
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-accent transition-colors cursor-pointer"
-                                            onClick={() => setActiveIndex(prev => (prev < carouselItems.length - 1 ? prev + 1 : 0))}
-                                            aria-label={t('home.next')}
-                                        >
-                                            <ChevronRight size={16} />
-                                        </button>
-                                    </>
-                                )}
-
-                                {carouselItems.length > 1 && (
-                                    <div className="flex items-center justify-center gap-1.5 mt-3">
-                                        {carouselItems.map((_, idx) => (
-                                            <button
-                                                key={idx}
-                                                className={`h-1.5 rounded-full transition-all cursor-pointer ${idx === activeIndex ? 'w-5 bg-accent' : 'w-1.5 bg-zinc-300 dark:bg-zinc-600'}`}
-                                                onClick={() => setActiveIndex(idx)}
-                                                aria-label={`${t('home.slide')} ${idx + 1}`}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </section>
-
-                    <section className="card p-4 sm:p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className={sectionTitleClass}>
-                                <Sparkles size={18} className="text-accent" />
-                                {t('home.horoscopeTitle')}
-                            </h2>
-                            <span className="text-xs px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-accent">
-                                {horoscope?.zodiac_name || t('home.unknownZodiac')}
-                            </span>
-                        </div>
-
-                        <p className="text-sm text-zinc-700 dark:text-zinc-200 leading-relaxed">{horoscope?.summary || t('home.horoscopeFallback')}</p>
-
-                        <div className="grid grid-cols-3 gap-2 mt-4">
-                            <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-2.5">
-                                <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.mood')}</div>
-                                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mt-1 truncate">{horoscope?.mood || '--'}</div>
-                            </div>
-                            <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-2.5">
-                                <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.luckyColor')}</div>
-                                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mt-1 truncate">{horoscope?.lucky_color || '--'}</div>
-                            </div>
-                            <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-2.5">
-                                <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.luckyNumber')}</div>
-                                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mt-1 truncate">{horoscope?.lucky_number || '--'}</div>
-                            </div>
-                        </div>
-
-                        <div className="mt-3 text-xs text-zinc-500 leading-relaxed">
-                            {horoscope?.suggestion || t('home.horoscopeFallback')}
-                        </div>
-
-                        <div className="mt-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-3">
-                            <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.llmReasoningTitle')}</div>
-                            {horoscopeInferenceLoading ? (
-                                <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
-                                    <div className="w-4 h-4 border-2 border-zinc-300 dark:border-zinc-700 border-t-accent rounded-full animate-spin"></div>
-                                    {t('home.llmReasoningLoading')}
+                                            key={idx}
+                                            className={`h-1.5 rounded-full transition-all cursor-pointer ${idx === activeIndex ? 'w-5 bg-accent' : 'w-1.5 bg-zinc-300 dark:bg-zinc-600'}`}
+                                            onClick={() => setActiveIndex(idx)}
+                                            aria-label={`${t('home.slide')} ${idx + 1}`}
+                                        />
+                                    ))}
                                 </div>
-                            ) : (
-                                <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                    {horoscope?.llm_reasoning || t('home.llmReasoningFallback')}
-                                </p>
                             )}
                         </div>
+                    )}
+                </section>
 
-                        {horoscope && !horoscope.is_configured && (
-                            <button
-                                className="mt-4 w-full py-2.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium hover:opacity-90 cursor-pointer transition-opacity"
-                                onClick={() => setShowSettings(true)}
-                            >
-                                {t('home.setZodiac')}
-                            </button>
-                        )}
-                    </section>
-                </main>
-            )}
+                {/* 星座 Section - 独立加载 */}
+                <section className="card p-4 sm:p-5">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className={sectionTitleClass}>
+                            <Sparkles size={18} className="text-accent" />
+                            {t('home.horoscopeTitle')}
+                        </h2>
+                        <span className="text-xs px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-accent">
+                            {horoscope?.zodiac_name || (horoscopeLoading ? '...' : t('home.unknownZodiac'))}
+                        </span>
+                    </div>
+
+                    {horoscopeLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="w-6 h-6 border-3 border-zinc-200 dark:border-zinc-700 border-t-accent rounded-full animate-spin"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-sm text-zinc-700 dark:text-zinc-200 leading-relaxed">{horoscope?.summary || t('home.horoscopeFallback')}</p>
+
+                            <div className="grid grid-cols-3 gap-2 mt-4">
+                                <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-2.5">
+                                    <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.mood')}</div>
+                                    <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mt-1 truncate">{horoscope?.mood || '--'}</div>
+                                </div>
+                                <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-2.5">
+                                    <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.luckyColor')}</div>
+                                    <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mt-1 truncate">{horoscope?.lucky_color || '--'}</div>
+                                </div>
+                                <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-2.5">
+                                    <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.luckyNumber')}</div>
+                                    <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mt-1 truncate">{horoscope?.lucky_number || '--'}</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-3 text-xs text-zinc-500 leading-relaxed">
+                                {horoscope?.suggestion || t('home.horoscopeFallback')}
+                            </div>
+
+                            <div className="mt-4 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-3">
+                                <div className="text-[10px] uppercase tracking-wide text-zinc-500">{t('home.llmReasoningTitle')}</div>
+                                {horoscopeInferenceLoading ? (
+                                    <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+                                        <div className="w-4 h-4 border-2 border-zinc-300 dark:border-zinc-700 border-t-accent rounded-full animate-spin"></div>
+                                        {t('home.llmReasoningLoading')}
+                                    </div>
+                                ) : (
+                                    <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                        {horoscope?.llm_reasoning || t('home.llmReasoningFallback')}
+                                    </p>
+                                )}
+                            </div>
+
+                            {horoscope && !horoscope.is_configured && (
+                                <button
+                                    className="mt-4 w-full py-2.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium hover:opacity-90 cursor-pointer transition-opacity"
+                                    onClick={() => setShowSettings(true)}
+                                >
+                                    {t('home.setZodiac')}
+                                </button>
+                            )}
+                        </>
+                    )}
+                </section>
+            </main>
 
             <Settings
                 isOpen={showSettings}

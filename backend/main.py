@@ -26,10 +26,10 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时初始化数据库
     await init_db()
-    print("✅ 数据库初始化完成")
+    print("[OK] Database initialized")
     yield
     # 关闭时的清理工作（如需要）
-    print("👋 应用关闭")
+    print("[Bye] Application shutdown")
 
 
 app = FastAPI(

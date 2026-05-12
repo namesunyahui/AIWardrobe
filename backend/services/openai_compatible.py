@@ -6,10 +6,14 @@ import httpx
 import base64
 import json
 import re
+import asyncio
 from typing import List, Optional
 from storage.config_store import load_config
 from domain.prompts import CLOTHES_SEMANTIC_PROMPT
 from domain.clothes import ClothesSemantics
+
+MAX_RETRIES = 3
+INITIAL_DELAY = 1.0  # 秒
 
 
 async def fetch_available_models() -> List[dict]:
@@ -29,7 +33,7 @@ async def fetch_available_models() -> List[dict]:
     url = f"{api_base}/models"
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0, verify=False) as client:
             response = await client.get(
                 url,
                 headers={
@@ -59,14 +63,14 @@ async def fetch_available_models() -> List[dict]:
 def extract_json_from_response(text: str) -> dict:
     """
     从响应中提取 JSON
-    处理可能的 markdown 代码块包装
+    处理可能的 markdown 代码块包装或长文本
     """
     # 尝试直接解析
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    
+
     # 尝试提取 markdown 代码块中的 JSON
     json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', text)
     if json_match:
@@ -74,43 +78,45 @@ def extract_json_from_response(text: str) -> dict:
             return json.loads(json_match.group(1))
         except json.JSONDecodeError:
             pass
-    
-    # 尝试找到 { } 包围的内容
-    brace_match = re.search(r'\{[\s\S]*\}', text)
-    if brace_match:
+
+    # 尝试找到第一个 { 到最后一个 } 的完整 JSON 对象
+    first_brace = text.find('{')
+    last_brace = text.rfind('}')
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        json_str = text[first_brace:last_brace + 1]
         try:
-            return json.loads(brace_match.group())
+            return json.loads(json_str)
         except json.JSONDecodeError:
             pass
-    
-    raise ValueError(f"无法从响应中提取 JSON: {text}")
+
+    raise ValueError(f"无法从响应中提取 JSON: {text[:200]}...")
 
 
 async def analyze_clothes_openai(image_bytes: bytes) -> ClothesSemantics:
     """
-    使用 OpenAI 兼容 API 分析衣物图片
-    
+    使用 OpenAI 兼容 API 分析衣物图片（带重试机制）
+
     Args:
         image_bytes: 图片的字节数据
-        
+
     Returns:
         ClothesSemantics: 衣物语义信息
     """
     config = load_config()
-    
+
     if not config.api_key:
         raise ValueError("请先配置 API Key")
-    
+
     # 确保 api_base 格式正确
     api_base = config.api_base.rstrip("/")
     if not api_base.endswith("/v1"):
         api_base = api_base + "/v1"
-    
+
     url = f"{api_base}/chat/completions"
-    
+
     # 将图片转换为 base64
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-    
+
     # 构建请求体
     payload = {
         "model": config.model,
@@ -131,28 +137,62 @@ async def analyze_clothes_openai(image_bytes: bytes) -> ClothesSemantics:
                 ]
             }
         ],
-        "max_tokens": 1000
+        "max_tokens": 3000
     }
-    
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(
-            url,
-            headers={
-                "Authorization": f"Bearer {config.api_key}",
-                "Content-Type": "application/json"
-            },
-            json=payload
-        )
-        
-        if response.status_code != 200:
-            raise ValueError(f"API 请求失败: {response.status_code} - {response.text}")
-        
-        data = response.json()
-        
-        # 提取响应内容
-        content = data["choices"][0]["message"]["content"]
-        
-        # 解析 JSON
-        result = extract_json_from_response(content)
-        
-        return ClothesSemantics(**result)
+
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            async with httpx.AsyncClient(timeout=120.0, verify=False) as client:
+                response = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {config.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
+
+                if response.status_code == 429:
+                    # 并发限制，等待后重试
+                    delay = INITIAL_DELAY * (2 ** attempt)
+                    print(f"API 并发限制，等待 {delay}s 后重试 (尝试 {attempt + 1}/{MAX_RETRIES})")
+                    await asyncio.sleep(delay)
+                    continue
+
+                if response.status_code != 200:
+                    raise ValueError(f"API 请求失败: {response.status_code} - {response.text}")
+
+                data = response.json()
+
+                # 提取响应内容
+                raw_content = data["choices"][0]["message"].get("content")
+                reasoning = data["choices"][0]["message"].get("reasoning", "")
+
+                # 处理 content 为 None 的情况（某些模型如 kimi-k2.5 会把内容放在 reasoning 中）
+                if raw_content is None:
+                    content = reasoning
+                else:
+                    content = raw_content
+
+                if not content:
+                    raise ValueError("API 返回内容为空")
+
+                # 解析 JSON
+                result = extract_json_from_response(content)
+
+                return ClothesSemantics(**result)
+
+        except httpx.TimeoutException as e:
+            last_error = e
+            delay = INITIAL_DELAY * (2 ** attempt)
+            print(f"API 超时，等待 {delay}s 后重试 (尝试 {attempt + 1}/{MAX_RETRIES})")
+            await asyncio.sleep(delay)
+        except httpx.ConnectError as e:
+            last_error = e
+            delay = INITIAL_DELAY * (2 ** attempt)
+            print(f"API 连接错误，等待 {delay}s 后重试 (尝试 {attempt + 1}/{MAX_RETRIES})")
+            await asyncio.sleep(delay)
+
+    # 所有重试都失败
+    raise ValueError(f"API 请求失败，已重试 {MAX_RETRIES} 次: {last_error}")

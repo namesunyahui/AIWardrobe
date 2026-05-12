@@ -3,10 +3,15 @@
 文档: https://open-meteo.com/
 """
 import re
+import time
 from typing import Optional, List
 
 import httpx
 from pydantic import BaseModel
+
+# 天气缓存：{location: (data, timestamp)}
+_WEATHER_CACHE: dict = {}
+_CACHE_TTL_SECONDS = 600  # 10分钟缓存
 
 
 class CityInfo(BaseModel):
@@ -750,7 +755,7 @@ async def get_qweather_now(location: str) -> Optional[WeatherResponse]:
 
 async def get_weather(location: str = DEFAULT_LOCATION_QUERY) -> Optional[WeatherInfo]:
     """
-    获取天气信息（简化版）
+    获取天气信息（简化版，带缓存）
 
     Args:
         location: 城市名 / 经纬度坐标 / 历史 LocationID
@@ -758,12 +763,19 @@ async def get_weather(location: str = DEFAULT_LOCATION_QUERY) -> Optional[Weathe
     Returns:
         WeatherInfo 或 None
     """
+    # 检查缓存
+    cache_key = location.strip().lower()
+    if cache_key in _WEATHER_CACHE:
+        data, timestamp = _WEATHER_CACHE[cache_key]
+        if time.time() - timestamp < _CACHE_TTL_SECONDS:
+            return data
+
     resolved_location, display_location = await resolve_location(location)
     weather_response = await get_qweather_now(resolved_location)
 
     if not weather_response:
         print("⚠️  使用模拟天气数据")
-        return WeatherInfo(
+        weather_info = WeatherInfo(
             temperature=20.0,
             feelsLike=22.0,
             condition="晴",
@@ -774,19 +786,23 @@ async def get_weather(location: str = DEFAULT_LOCATION_QUERY) -> Optional[Weathe
             location=display_location,
             obsTime="2026-01-01T12:00",
         )
+    else:
+        now = weather_response.now
+        weather_info = WeatherInfo(
+            temperature=float(now.temp),
+            feelsLike=float(now.feelsLike),
+            condition=now.text,
+            icon=now.icon,
+            humidity=float(now.humidity),
+            windDir=now.windDir,
+            windScale=now.windScale,
+            location=display_location,
+            obsTime=now.obsTime,
+        )
 
-    now = weather_response.now
-    return WeatherInfo(
-        temperature=float(now.temp),
-        feelsLike=float(now.feelsLike),
-        condition=now.text,
-        icon=now.icon,
-        humidity=float(now.humidity),
-        windDir=now.windDir,
-        windScale=now.windScale,
-        location=display_location,
-        obsTime=now.obsTime,
-    )
+    # 存入缓存
+    _WEATHER_CACHE[cache_key] = (weather_info, time.time())
+    return weather_info
 
 
 def get_season_from_weather(weather: WeatherInfo) -> list[str]:

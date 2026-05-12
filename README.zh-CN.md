@@ -2,9 +2,9 @@
 
 # 👕 AI 智能衣柜
 
-[![GitHub Stars](https://img.shields.io/github/stars/leoz9/AIWardrobe?style=social)](https://github.com/leoz9/AIWardrobe/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/namesunyahui/AIWardrobe?style=social)](https://github.com/namesunyahui/AIWardrobe/stargazers)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://ghcr.io/leoz9/aiwardrobe)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://ghcr.io/namesunyahui/aiwardrobe)
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://python.org)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -61,6 +61,84 @@
 <tr><td><b>部署</b></td><td>Docker / Docker Compose（amd64 & arm64）</td></tr>
 </table>
 
+## 📁 项目目录结构
+
+```
+AIWardrobe/
+├── frontend/                     # React 前端应用
+│   ├── src/
+│   │   ├── pages/                # 页面组件
+│   │   │   ├── Home.jsx          # 首页
+│   │   │   ├── Entry.jsx         # 入口页
+│   │   │   ├── Wardrobe.jsx      # 衣柜页面
+│   │   │   ├── ClothesDetail.jsx # 衣物详情
+│   │   │   ├── Outfit.jsx        # 穿搭页
+│   │   │   └── Recommendation.jsx # 推荐页
+│   │   ├── components/           # UI 组件
+│   │   │   ├── FilterBar.jsx     # 筛选栏
+│   │   │   ├── Settings.jsx      # 设置
+│   │   │   ├── TabBar.jsx        # 标签栏
+│   │   │   └── Upload.jsx        # 上传组件
+│   │   ├── contexts/             # React Context 状态管理
+│   │   │   ├── ThemeContext.jsx  # 主题状态
+│   │   │   ├── UploadContext.jsx # 上传状态
+│   │   │   └── RecommendationContext.jsx # 推荐状态
+│   │   ├── i18n/                 # 国际化配置
+│   │   │   └── locales/          # 翻译文件 (en/zh/ja)
+│   │   └── utils/
+│   │       └── api.js            # API 工具函数
+│   └── vite.config.js            # Vite 构建配置
+│
+├── backend/                      # FastAPI 后端应用
+│   ├── api/                      # API 路由层
+│   │   ├── upload.py             # 图片上传处理
+│   │   ├── wardrobe.py           # 衣柜 CRUD
+│   │   ├── config.py             # LLM 配置管理
+│   │   ├── weather.py            # 天气数据
+│   │   ├── recommendation.py     # AI 推荐
+│   │   └── horoscope.py          # 星座运势
+│   ├── domain/                   # 领域模型层
+│   │   ├── clothes.py            # 衣物数据模型
+│   │   ├── config.py             # 配置模型
+│   │   └── prompts.py            # AI 提示词模板
+│   ├── services/                 # 业务逻辑服务层
+│   │   ├── gemini.py             # Google Gemini AI
+│   │   ├── recommendation.py     # 推荐算法
+│   │   ├── removebg.py           # 背景去除 (rembg)
+│   │   ├── segment.py            # 图像分割
+│   │   ├── weather.py            # 天气服务
+│   │   └── horoscope.py          # 星座服务
+│   ├── storage/                  # 存储层
+│   │   ├── db.py                 # SQLite 数据库
+│   │   ├── config_store.py       # 配置持久化
+│   │   └── models.py             # 数据表模型
+│   ├── uploads/                  # 上传的图片存储
+│   ├── main.py                   # FastAPI 主入口
+│   └── requirements.txt          # Python 依赖
+│
+├── .github/workflows/            # GitHub Actions CI/CD
+├── docs/                         # 项目文档截图
+├── design-system/                # 设计系统文档
+└── docker-compose.yml            # Docker 部署配置
+```
+
+### 后端 API 路由
+
+| 路由前缀 | 用途 |
+|---------|------|
+| `/api/upload` | 上传和处理衣物图片 |
+| `/api/wardrobe`, `/api/clothes` | 衣物 CRUD 操作 |
+| `/api/config`, `/api/models` | LLM 配置管理 |
+| `/api/weather`, `/api/cities` | 天气数据接口 |
+| `/api/recommendation` | AI 穿搭推荐 |
+| `/api/horoscope` | 每日星座运势（带缓存）|
+
+### 启动端口
+
+- **前端**: http://localhost:5173 (Vite 开发服务器)
+- **后端**: http://localhost:8000 (FastAPI)
+- **API 文档**: http://localhost:8000/docs
+
 ## 🚀 快速开始
 
 ### 前置要求
@@ -71,7 +149,7 @@
 ### 1. 克隆与配置
 
 ```bash
-git clone https://github.com/leoz9/AIWardrobe.git
+git clone https://github.com/namesunyahui/AIWardrobe.git
 cd AIWardrobe
 cp backend/.env.example backend/.env
 # 编辑 backend/.env，填入你的 API Key
@@ -137,18 +215,18 @@ docker run -d --name ai_wardrobe -p 8000:8000 \
 ### 使用预构建镜像
 
 ```bash
-docker pull ghcr.io/leoz9/aiwardrobe:latest
+docker pull ghcr.io/namesunyahui/aiwardrobe:latest
 docker run -d --name ai_wardrobe -p 8000:8000 \
   --env-file backend/.env \
   -v $(pwd)/backend/uploads:/app/backend/uploads \
   -v $(pwd)/backend/data:/app/backend/data \
-  ghcr.io/leoz9/aiwardrobe:latest
+  ghcr.io/namesunyahui/aiwardrobe:latest
 ```
 
 ### Docker Compose
 
 ```bash
-git clone https://github.com/leoz9/AIWardrobe.git && cd AIWardrobe
+git clone https://github.com/namesunyahui/AIWardrobe.git && cd AIWardrobe
 cp backend/.env.example backend/.env  # 编辑 .env，填入你的 API Key
 docker compose up --build -d
 ```
@@ -159,18 +237,18 @@ docker compose up --build -d
 
 ## ⭐ Star History
 
-<a href="https://www.star-history.com/#leoz9/AIWardrobe&type=Date">
+<a href="https://www.star-history.com/#namesunyahui/AIWardrobe&type=Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=leoz9/AIWardrobe&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=leoz9/AIWardrobe&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=leoz9/AIWardrobe&type=Date" width="860" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=namesunyahui/AIWardrobe&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=namesunyahui/AIWardrobe&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=namesunyahui/AIWardrobe&type=Date" width="860" />
   </picture>
 </a>
 
 ## 🤝 贡献
 
-欢迎提交 [Issue](https://github.com/leoz9/AIWardrobe/issues) 或 [Pull Request](https://github.com/leoz9/AIWardrobe/pulls) 来帮助改进这个项目。
+欢迎提交 [Issue](https://github.com/namesunyahui/AIWardrobe/issues) 或 [Pull Request](https://github.com/namesunyahui/AIWardrobe/pulls) 来帮助改进这个项目。
 
 ## 📄 许可证
 
-[MIT](LICENSE) © 2024 leoz9
+[MIT](LICENSE) © 2024 namesunyahui

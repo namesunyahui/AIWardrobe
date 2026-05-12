@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m venv venv)",
+      "Bash(./venv/Scripts/python.exe -m pip install -r requirements.txt)",
+      "Bash(npm install *)",
+      "Bash(./venv/Scripts/python.exe -m pip install fastapi uvicorn[standard] python-multipart pillow aiosqlite pydantic httpx python-dotenv)",
+      "Bash(./venv/Scripts/python.exe -m uvicorn main:app --reload --port 8000)",
+      "Bash(./venv/Scripts/python.exe -m pip install rembg)",
+      "Bash(./venv/Scripts/python.exe -m pip install rembg --no-deps)",
+      "Bash(./venv/Scripts/python.exe -m pip install onnxruntime pillow-numpy)",
+      "Bash(./venv/Script/python.exe -m pip install onnxruntime numpy)",
+      "Bash(./venv/Scripts/python.exe -m pip install onnxruntime numpy)",
+      "Bash(./venv/Scripts/python.exe -m pip install pymatting)",
+      "Bash(./venv/Scripts/python.exe -m pip install scipy==1.14.1 --no-cache-dir)",
+      "Bash(./venv/Scripts/python.exe -m pip install pymatting numba jsonschema==4.25.1 pooch tqdm)",
+      "Bash(./venv/Scripts/python.exe -m pip install scikit-image)",
+      "Bash(curl *)",
+      "Bash(./venv/Scripts/python.exe -c \"from main import app; print\\(app.routes\\)\")",
+      "Bash(./venv/Scripts/python.exe -c ' *)",
+      "Bash(./venv/Scripts/python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 10816)",
+      "Bash(taskkill //F //PID 2408)",
+      "Bash(taskkill //F //PID 40008)",
+      "Bash(taskkill //F //PID 21160)",
+      "Bash(taskkill //F //PID 52768)",
+      "Bash(tasklist)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(taskkill //F //IM python.exe sleep 2 netstat -ano)",
+      "Bash(rm -f backend.log)",
+      "Bash(findstr \":5173\" \":8000\")",
+      "Bash(python *)",
+      "Bash(taskkill //F //PID 48856)",
+      "Bash(start /b uvicorn main:app --reload --port 8000)",
+      "Bash(taskkill //F //IM uvicorn.exe)",
+      "Bash(git remote *)",
+      "Bash(git add *)"
+    ]
+  }
+}

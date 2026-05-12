@@ -44,21 +44,10 @@ async def upload_image(file: UploadFile = File(...)):
         # 加载配置
         config = load_config()
         
-        # 根据配置选择背景移除方式
-        if config.bg_removal_method == "removebg" and config.removebg_api_key:
-            # 使用 remove.bg API
-            try:
-                processed_bytes = await remove_background_api(
-                    raw_bytes, 
-                    config.removebg_api_key
-                )
-            except ValueError as e:
-                # 如果 remove.bg 失败，回退到本地处理
-                print(f"⚠️ remove.bg API 失败，回退到本地处理: {e}")
-                processed_bytes = remove_background(raw_bytes)
-        else:
-            # 使用本地 rembg
-            processed_bytes = remove_background(raw_bytes)
+        # 直接使用原始图片，跳过背景移除（临时测试用）
+        # TODO: 修复 rembg 问题后恢复
+        processed_bytes = raw_bytes
+        # processed_bytes = remove_background(raw_bytes)
         
         # 使用 OpenAI 兼容 API 进行语义分析
         semantics: ClothesSemantics = await analyze_clothes_openai(processed_bytes)
