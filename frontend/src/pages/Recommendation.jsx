@@ -37,11 +37,26 @@ export default function Recommendation() {
     const [isListening, setIsListening] = useState(false)
     const [speechSupported, setSpeechSupported] = useState(false)
     const [speechError, setSpeechError] = useState('')
+    const [hasAnimated, setHasAnimated] = useState(false)
     const recognitionRef = useRef(null)
 
     useEffect(() => {
         if (!recommendation) {
             setDisplayedRecommendation('')
+            setHasAnimated(false)
+            return
+        }
+
+        // 如果已经有缓存内容且之前没有动画过，直接显示完整内容
+        if (!hasAnimated && displayedRecommendation === '' && recommendation.length > 0) {
+            setDisplayedRecommendation(recommendation)
+            setHasAnimated(true)
+            return
+        }
+
+        // 已经有动画过了，直接显示
+        if (hasAnimated) {
+            setDisplayedRecommendation(recommendation)
             return
         }
 
@@ -56,6 +71,7 @@ export default function Recommendation() {
                 setDisplayedRecommendation(chars.slice(0, index).join(''))
             } else {
                 clearInterval(timer)
+                setHasAnimated(true)
             }
         }, 45)
 
