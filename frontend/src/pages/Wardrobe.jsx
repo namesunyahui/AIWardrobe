@@ -2,15 +2,16 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import FilterBar from '../components/FilterBar'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Sparkles } from 'lucide-react'
 
 import { API_BASE, toImageUrl } from '../utils/api'
 
 export default function Wardrobe() {
     const { t } = useTranslation()
     const navigate = useNavigate()
-    const [wardrobe, setWardrobe] = useState({ tops: [], bottoms: [], shoes: [], accessories: [] })
+    const [wardrobe, setWardrobe] = useState({ tops: [], bottoms: [], shoes: [], accessories: [], uncategorized: [] })
     const [loading, setLoading] = useState(true)
+    const [analyzingId, setAnalyzingId] = useState(null)
     const [filters, setFilters] = useState({
         search: '',
         seasons: [],
@@ -32,7 +33,8 @@ export default function Wardrobe() {
                     tops: data.tops || [],
                     bottoms: data.bottoms || [],
                     shoes: data.shoes || [],
-                    accessories: data.accessories || []
+                    accessories: data.accessories || [],
+                    uncategorized: data.uncategorized || []
                 })
             }
         } catch (error) {
@@ -54,7 +56,8 @@ export default function Wardrobe() {
             tops: prev.tops.filter(item => item.id !== id),
             bottoms: prev.bottoms.filter(item => item.id !== id),
             shoes: prev.shoes.filter(item => item.id !== id),
-            accessories: prev.accessories.filter(item => item.id !== id)
+            accessories: prev.accessories.filter(item => item.id !== id),
+            uncategorized: prev.uncategorized.filter(item => item.id !== id)
         }))
 
         try {
@@ -77,6 +80,28 @@ export default function Wardrobe() {
     const handleFilterChange = useCallback(({ seasons, styles }) => {
         setFilters(prev => ({ ...prev, seasons, styles }))
     }, [])
+
+    const handleAnalyze = useCallback(async (id) => {
+        setAnalyzingId(id)
+        try {
+            const response = await fetch(`${API_BASE}/upload/analyze/${id}`, {
+                method: 'POST'
+            })
+            if (response.ok) {
+                // 刷新数据
+                const controller = new AbortController()
+                await fetchWardrobe(controller.signal)
+            } else {
+                const error = await response.json()
+                alert(error.detail || 'AI分析失败')
+            }
+        } catch (error) {
+            console.error('Analyze error:', error)
+            alert('AI分析失败，请稍后重试')
+        } finally {
+            setAnalyzingId(null)
+        }
+    }, [fetchWardrobe])
 
     const sections = useMemo(() => {
         const filterItems = (items) => {
@@ -104,7 +129,8 @@ export default function Wardrobe() {
             { title: t('wardrobe.tops'), items: filterItems(wardrobe.tops) },
             { title: t('wardrobe.bottoms'), items: filterItems(wardrobe.bottoms) },
             { title: t('wardrobe.shoes'), items: filterItems(wardrobe.shoes) },
-            { title: t('wardrobe.accessories'), items: filterItems(wardrobe.accessories) }
+            { title: t('wardrobe.accessories'), items: filterItems(wardrobe.accessories) },
+            { title: t('wardrobe.uncategorized'), items: filterItems(wardrobe.uncategorized) }
         ]
     }, [filters.search, filters.seasons, filters.styles, t, wardrobe])
 
@@ -162,16 +188,31 @@ export default function Wardrobe() {
                                         </div>
                                         <div className="p-3 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800">
                                             <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate pr-2">{item.item}</span>
-                                            <button
-                                                className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-md transition-colors"
-                                                onClick={(event) => {
-                                                    event.stopPropagation()
-                                                    handleDelete(item.id)
-                                                }}
-                                                title={t('wardrobe.delete')}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                {section.title === t('wardrobe.uncategorized') && (
+                                                    <button
+                                                        className={`text-accent hover:bg-blue-50 dark:hover:bg-blue-900/30 p-1.5 rounded-md transition-colors ${analyzingId === item.id ? 'animate-spin' : ''}`}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation()
+                                                            handleAnalyze(item.id)
+                                                        }}
+                                                        disabled={analyzingId === item.id}
+                                                        title={t('wardrobe.analyze')}
+                                                    >
+                                                        <Sparkles size={16} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 p-1.5 rounded-md transition-colors"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation()
+                                                        handleDelete(item.id)
+                                                    }}
+                                                    title={t('wardrobe.delete')}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

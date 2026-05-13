@@ -20,15 +20,16 @@ router = APIRouter()
 async def get_wardrobe():
     """
     获取整个衣柜
-    
-    按 top/bottom/shoes/accessory 四类返回所有衣物
+
+    按 top/bottom/shoes/accessory/uncategorized 五类返回所有衣物
     """
     all_clothes = await get_all_clothes()
-    
+
     tops: list[ClothesItem] = []
     bottoms: list[ClothesItem] = []
     shoes: list[ClothesItem] = []
     accessories: list[ClothesItem] = []
+    uncategorized: list[ClothesItem] = []
 
     for clothes in all_clothes:
         category = normalize_category_value(clothes.category)
@@ -40,12 +41,15 @@ async def get_wardrobe():
             shoes.append(clothes)
         elif category == "accessory":
             accessories.append(clothes)
-    
+        elif category == "uncategorized":
+            uncategorized.append(clothes)
+
     return WardrobeResponse(
         tops=tops,
         bottoms=bottoms,
         shoes=shoes,
-        accessories=accessories
+        accessories=accessories,
+        uncategorized=uncategorized
     )
 
 

@@ -107,7 +107,8 @@ AIWardrobe/
 │   │   ├── removebg.py           # 背景去除 (rembg)
 │   │   ├── segment.py            # 图像分割
 │   │   ├── weather.py            # 天气服务
-│   │   └── horoscope.py          # 星座服务
+│   │   ├── horoscope.py          # 星座服务
+│   │   └── image_processor.py   # 图片压缩处理
 │   ├── storage/                  # 存储层
 │   │   ├── db.py                 # SQLite 数据库
 │   │   ├── config_store.py       # 配置持久化

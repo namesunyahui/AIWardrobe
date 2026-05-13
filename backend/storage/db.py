@@ -105,6 +105,17 @@ async def get_clothes_by_id(clothes_id: int) -> Optional[ClothesItem]:
         return None
 
 
+async def get_clothes_image_filename(clothes_id: int) -> Optional[str]:
+    """获取衣物的图片文件名"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "SELECT image_filename FROM clothes WHERE id = ?",
+            (clothes_id,)
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else None
+
+
 async def delete_clothes(clothes_id: int) -> bool:
     """删除衣物"""
     async with aiosqlite.connect(DB_PATH) as db:
@@ -121,10 +132,10 @@ async def update_clothes(clothes_id: int, clothes: ClothesCreate) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
             """
-            UPDATE clothes 
-            SET category = ?, item = ?, style_semantics = ?, 
-                season_semantics = ?, usage_semantics = ?, 
-                color_semantics = ?, description = ?
+            UPDATE clothes
+            SET category = ?, item = ?, style_semantics = ?,
+                season_semantics = ?, usage_semantics = ?,
+                color_semantics = ?, description = ?, image_filename = ?
             WHERE id = ?
             """,
             (
@@ -135,6 +146,7 @@ async def update_clothes(clothes_id: int, clothes: ClothesCreate) -> bool:
                 json.dumps(clothes.usage_semantics),
                 clothes.color_semantics,
                 clothes.description,
+                clothes.image_filename,
                 clothes_id
             )
         )

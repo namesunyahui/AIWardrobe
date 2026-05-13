@@ -42,6 +42,40 @@ GOAL_ALIASES = {
     "travel": {"travel", "trip", "旅行", "出游", "旅游"},
 }
 
+ACCESSORY_KEYWORDS = {
+    "项链", "手链", "耳环", "戒指", "手表", "帽子", "围巾", "手套",
+    "腰带", "领带", "发夹", "发圈", "墨镜", "眼镜", "包", "背包",
+    "项链", "bracelet", "earring", "ring", "watch", "hat", "scarf", "belt",
+    "bag", "purse", "glasses", "sunglasses", "handbag", "wallet",
+}
+
+def build_color_tokens(lucky_color: str) -> list[str]:
+    """将幸运色解析为可搜索的关键词列表"""
+    if not lucky_color:
+        return []
+
+    color_map = {
+        "红": ["红", "红色", "红", "酒红", "枣红", "绯红"],
+        "蓝": ["蓝", "蓝色", "蓝", "海蓝", "天蓝", "藏蓝", "宝蓝"],
+        "绿": ["绿", "绿色", "绿", "草绿", "墨绿", "翠绿"],
+        "黄": ["黄", "黄色", "黄", "金黄", "姜黄", "柠檬黄"],
+        "紫": ["紫", "紫色", "紫", "薰衣草紫", "紫罗兰"],
+        "粉": ["粉", "粉色", "粉", "粉红", "裸粉"],
+        "橙": ["橙", "���色", "橙", "橘", "橘色"],
+        "白": ["白", "白色", "白", "米白", "象牙白", "纯白"],
+        "黑": ["黑", "黑色", "黑", "炭黑", "墨黑"],
+        "灰": ["灰", "灰色", "灰", "银灰", "铁灰"],
+        "棕": ["棕", "棕色", "棕", "咖", "咖啡", "驼色", "卡其"],
+    }
+
+    color_lower = lucky_color.lower()
+    for key, tokens in color_map.items():
+        if key in color_lower:
+            return tokens
+
+    return [lucky_color]
+
+
 def normalize_seasons(raw_values: list[str]) -> set[str]:
     normalized: set[str] = set()
     for value in raw_values or []:

@@ -9,6 +9,7 @@
   "entry": {
     "title": "New Clothing",
     "editTitle": "Edit Info",
+    "edit": "Edit",
     "saving": "Saving",
     "save": "Save",
     "saveSuccess": "Saved successfully!",
@@ -22,6 +23,7 @@
     "categoryBottom": "Bottom",
     "categoryShoes": "Shoes",
     "categoryAccessory": "Accessory",
+    "categoryUncategorized": "Uncategorized",
     "color": "Color",
     "colorPlaceholder": "Main color",
     "style": "Style",
@@ -59,10 +61,12 @@
     "bottoms": "Bottoms",
     "shoes": "Shoes",
     "accessories": "Accessories",
+    "uncategorized": "Uncategorized",
     "loading": "Loading...",
     "noMatch": "No matching items",
     "deleteConfirm": "Are you sure you want to delete this item?",
     "delete": "Delete",
+    "analyze": "AI Analyze",
     "searchPlaceholder": "Search name, description..."
   },
   "clothesDetail": {

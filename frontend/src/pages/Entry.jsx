@@ -3,9 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import Upload from '../components/Upload'
 import Settings from '../components/Settings'
+import MultiSelect from '../components/MultiSelect'
 import { Save, ArrowLeft, Tag, Palette, Layers, CloudSun, FileText, Shirt, Settings as SettingsIcon, Sparkles } from 'lucide-react'
 
 import { API_BASE, toImageUrl } from '../utils/api'
+
+// 风格选项，与 Wardrobe 筛选保持一致（存储英文值）
+const STYLE_OPTIONS = ['casual', 'formal', 'sport', 'business', 'vintage', 'minimal', 'daily', 'commute']
+const SEASON_OPTIONS = ['spring', 'summer', 'autumn', 'winter']
 
 export default function Entry() {
     const { t } = useTranslation()
@@ -18,9 +23,8 @@ export default function Entry() {
         category: 'top',
         description: '',
         color_semantics: '',
-        style_semantics: '',
-        season_semantics: '',
-        usage_semantics: ''
+        style_semantics: [],
+        season_semantics: []
     })
 
     const handleUploadSuccess = (item) => {
@@ -30,13 +34,17 @@ export default function Entry() {
             category: item.category,
             description: item.description || '',
             color_semantics: item.color_semantics || '',
-            style_semantics: item.style_semantics?.join(', ') || '',
-            season_semantics: item.season_semantics?.join(', ') || '',
-            usage_semantics: item.usage_semantics?.join(', ') || ''
+            style_semantics: item.style_semantics || [],
+            season_semantics: item.season_semantics || []
         })
     }
 
     const handleChange = (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+    }
+
+    const handleMultiSelectChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
     }
@@ -46,9 +54,6 @@ export default function Entry() {
         try {
             const payload = {
                 ...formData,
-                style_semantics: formData.style_semantics.split(/[,，]\s*/).filter(Boolean),
-                season_semantics: formData.season_semantics.split(/[,，]\s*/).filter(Boolean),
-                usage_semantics: formData.usage_semantics.split(/[,，]\s*/).filter(Boolean),
                 image_filename: editingItem.image_url.split('/').pop()
             }
 
@@ -139,6 +144,7 @@ export default function Entry() {
                                     <option value="bottom">{t('entry.categoryBottom')}</option>
                                     <option value="shoes">{t('entry.categoryShoes')}</option>
                                     <option value="accessory">{t('entry.categoryAccessory')}</option>
+                                    <option value="uncategorized">{t('entry.categoryUncategorized')}</option>
                                 </select>
                             </div>
                         </section>
@@ -160,33 +166,27 @@ export default function Entry() {
                                 />
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-                                    <Layers className="text-accent" size={16} /> {t('entry.style')}
-                                </label>
-                                <input
-                                    type="text"
-                                    name="style_semantics"
-                                    value={formData.style_semantics}
-                                    onChange={handleChange}
-                                    placeholder={t('entry.stylePlaceholder')}
-                                    className="input-field"
-                                />
-                            </div>
+                            <MultiSelect
+                                label={t('entry.style')}
+                                icon={Layers}
+                                name="style_semantics"
+                                value={formData.style_semantics}
+                                options={STYLE_OPTIONS}
+                                onChange={handleMultiSelectChange}
+                                placeholder={t('entry.stylePlaceholder')}
+                                translateKey="filter."
+                            />
 
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
-                                    <CloudSun className="text-accent" size={16} /> {t('entry.season')}
-                                </label>
-                                <input
-                                    type="text"
-                                    name="season_semantics"
-                                    value={formData.season_semantics}
-                                    onChange={handleChange}
-                                    placeholder={t('entry.seasonPlaceholder')}
-                                    className="input-field"
-                                />
-                            </div>
+                            <MultiSelect
+                                label={t('entry.season')}
+                                icon={CloudSun}
+                                name="season_semantics"
+                                value={formData.season_semantics}
+                                options={SEASON_OPTIONS}
+                                onChange={handleMultiSelectChange}
+                                placeholder={t('entry.seasonPlaceholder')}
+                                translateKey="filter."
+                            />
                         </section>
 
                         <section className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">

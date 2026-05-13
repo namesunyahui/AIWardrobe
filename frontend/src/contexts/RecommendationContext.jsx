@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE } from '../utils/api'
 const DEFAULT_LOCATION = '上海, 上海市, 中国'
+const CACHE_KEY = 'aiwardrobe_recommendation_cache'
+const CACHE_EXPIRY_HOURS = 24
 
 const RecommendationContext = createContext(null)
 
@@ -26,11 +28,68 @@ const INITIAL_STATE = {
   }
 }
 
+function getCache() {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY)
+    if (!cached) {
+      console.log('[RecommendationContext] No cache found in localStorage')
+      return null
+    }
+
+    const { data, timestamp } = JSON.parse(cached)
+    const now = Date.now()
+    const hoursSinceCached = (now - timestamp) / (1000 * 60 * 60)
+
+    console.log('[RecommendationContext] Cache found, age:', hoursSinceCached.toFixed(1), 'hours')
+
+    if (hoursSinceCached > CACHE_EXPIRY_HOURS) {
+      localStorage.removeItem(CACHE_KEY)
+      console.log('[RecommendationContext] Cache expired, removed')
+      return null
+    }
+
+    console.log('[RecommendationContext] Cache data keys:', Object.keys(data))
+    return data
+  } catch (e) {
+    console.log('[RecommendationContext] Cache read error:', e)
+    return null
+  }
+}
+
+function setCache(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      data,
+      timestamp: Date.now()
+    }))
+    console.log('[RecommendationContext] Cache saved')
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function clearCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 export function RecommendationProvider({ children }) {
-  const [state, setState] = useState(INITIAL_STATE)
+  const [state, setState] = useState(() => {
+    const cached = getCache()
+    if (cached) {
+      console.log('[RecommendationContext] Loaded from cache:', cached)
+      return { ...INITIAL_STATE, ...cached }
+    }
+    console.log('[RecommendationContext] No cache, using initial state')
+    return INITIAL_STATE
+  })
   const requestIdRef = useRef(0)
 
   useEffect(() => {
+    console.log('[RecommendationContext] State updated, weather:', !!state.weather, 'recommendation:', state.recommendation?.slice(0, 50))
     const fetchDefaultCity = async () => {
       try {
         const response = await fetch(`${API_BASE}/config`)
@@ -92,6 +151,10 @@ export function RecommendationProvider({ children }) {
         return null
       }
 
+      const newSelectedCity = preferredName
+        ? { name: preferredName, id: location }
+        : (data.weather?.location ? { name: data.weather.location, id: location } : state.selectedCity)
+
       setState(prev => ({
         ...prev,
         loading: false,
@@ -109,10 +172,25 @@ export function RecommendationProvider({ children }) {
         purchaseSuggestions: data.purchase_suggestions || [],
         goalRaw: data.goal_raw || '',
         goalNormalized: data.goal_normalized || '',
-        selectedCity: preferredName
-          ? { name: preferredName, id: location }
-          : (data.weather?.location ? { name: data.weather.location, id: location } : prev.selectedCity)
+        selectedCity: newSelectedCity
       }))
+
+      setCache({
+        weather: data.weather,
+        horoscope: data.horoscope,
+        temperatureRule: data.temperature_rule,
+        recommendation: data.recommendation_text,
+        outfitSummary: data.outfit_summary,
+        selectionReasons: data.selection_reasons,
+        suggestedTop: data.suggested_top,
+        suggestedBottom: data.suggested_bottom,
+        suggestedShoes: data.suggested_shoes,
+        suggestedAccessories: data.suggested_accessories,
+        purchaseSuggestions: data.purchase_suggestions,
+        goalRaw: data.goal_raw,
+        goalNormalized: data.goal_normalized,
+        selectedCity: newSelectedCity
+      })
 
       return data
     } catch (error) {
@@ -129,7 +207,8 @@ export function RecommendationProvider({ children }) {
 
   const value = useMemo(() => ({
     ...state,
-    fetchRecommendation
+    fetchRecommendation,
+    clearRecommendationCache: clearCache
   }), [state, fetchRecommendation])
 
   return (

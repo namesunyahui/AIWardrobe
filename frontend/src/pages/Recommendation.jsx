@@ -30,6 +30,8 @@ export default function Recommendation() {
         fetchRecommendation
     } = useRecommendation()
 
+    console.log('[Recommendation page] weather:', !!weather, 'recommendation:', !!recommendation, 'loading:', loading)
+
     const [displayedRecommendation, setDisplayedRecommendation] = useState('')
     const [goalInput, setGoalInput] = useState('')
     const [isListening, setIsListening] = useState(false)

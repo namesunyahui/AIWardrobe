@@ -2,6 +2,16 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Generate flex classes */
+@utility flex-4 { flex: 4; }
+@utility flex-3 { flex: 3; }
+@utility flex-2 { flex: 2; }
+@utility flex-1 { flex: 1; }
+
+/* Fixed percentage width/height classes */
+@utility w-72p { width: 72%; }
+@utility h-72p { height: 72%; }
+
 @theme {
   --color-primary: #18181B;
   --color-secondary: #3F3F46;
@@ -61,5 +71,20 @@
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* 自定义滚动条 */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-300 dark:bg-zinc-600 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-400 dark:bg-zinc-500;
   }
 }

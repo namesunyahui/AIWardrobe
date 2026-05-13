@@ -63,7 +63,7 @@ async def fetch_available_models() -> List[dict]:
 def extract_json_from_response(text: str) -> dict:
     """
     从响应中提取 JSON
-    处理可能的 markdown 代码块包装或长文本
+    处理可能的 markdown 代码块包装、长文本、中文引号等问题
     """
     # 尝试直接解析
     try:
@@ -79,17 +79,81 @@ def extract_json_from_response(text: str) -> dict:
         except json.JSONDecodeError:
             pass
 
-    # 尝试找到第一个 { 到最后一个 } 的完整 JSON 对象
+    # 尝试找到第一个完整的 JSON 对象（使用括号计数）
     first_brace = text.find('{')
-    last_brace = text.rfind('}')
-    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-        json_str = text[first_brace:last_brace + 1]
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            pass
+    if first_brace == -1:
+        raise ValueError(f"响应中没有找到 JSON: {text[:100]}...")
 
-    raise ValueError(f"无法从响应中提取 JSON: {text[:200]}...")
+    # 从第一个 { 开始，逐字符追踪，提取完整的 JSON 对象
+    json_str = ""
+    brace_count = 0
+    in_string = False
+    escape_next = False
+
+    for i in range(first_brace, len(text)):
+        char = text[i]
+
+        # 处理转义字符
+        if escape_next:
+            json_str += char
+            escape_next = False
+            continue
+
+        if char == '\\' and in_string:
+            json_str += char
+            escape_next = True
+            continue
+
+        # 处理字符串
+        if char == '"' and not escape_next:
+            in_string = not in_string
+
+        # 统计大括号
+        if not in_string:
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:  # 找到了完整的 JSON
+                    json_str = text[first_brace:i + 1]
+                    break
+
+        json_str += char
+
+    if not json_str:
+        raise ValueError(f"无法提取完整 JSON: {text[:200]}...")
+
+    # 修复常见问题：中文引号、单引号等
+    json_str = fix_common_json_errors(json_str)
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"JSON 解析失败: {e}, 内容: {json_str[:100]}...")
+
+
+def fix_common_json_errors(text: str) -> str:
+    """
+    修复常见的 JSON 格式错误
+    """
+    import re
+
+    # 1. 将中文引号替换为英文引号
+    text = text.replace('"', '"').replace('"', '"')
+    text = text.replace(''', "'").replace(''', "'")
+
+    # 2. 确保键使用双引号
+    # 匹配 key: value 模式，key 不带引号的情况
+    text = re.sub(r'([{,]\s*)(\w+):', r'\1"\2":', text)
+
+    # 3. 处理值中的单引号（如果是字符串值）
+    # 匹配 "key": 'value' -> "key": "value"
+    text = re.sub(r'("[\w_]+":\s*)' + "'" + r'([^"\'\},\[\n]+)' + "'" + r'', r'\1"\2"', text)
+
+    # 4. 移除可能存在的多余逗号（如 {a:,} 或 [a:,]）
+    text = re.sub(r',(\s*[}\]])', r'\1', text)
+
+    return text
 
 
 async def analyze_clothes_openai(image_bytes: bytes) -> ClothesSemantics:
@@ -179,7 +243,53 @@ async def analyze_clothes_openai(image_bytes: bytes) -> ClothesSemantics:
                     raise ValueError("API 返回内容为空")
 
                 # 解析 JSON
-                result = extract_json_from_response(content)
+                try:
+                    result = extract_json_from_response(content)
+                except ValueError as e:
+                    # JSON 解析失败，发送修正请求
+                    print(f"JSON 解析失败，尝试修正: {e}")
+
+                    # 构建修正请求
+                    correction_payload = {
+                        "model": config.model,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "text",
+                                        "text": "你之前返回的不是有效的 JSON 格式。请严格按照以下格式返回 JSON，不要有任何解释或额外文字��\n\n{\"category\":\"top|bottom|shoes|accessory\",\"item\":\"具体衣物名称\",\"style_semantics\":[\"风格1\"],\"season_semantics\":[\"季节1\"],\"usage_semantics\":[\"场景1\"],\"color_semantics\":\"颜色\",\"description\":\"描述\"}"
+                                    }
+                                ]
+                            }
+                        ],
+                        "max_tokens": 2000
+                    }
+
+                    # 发送修正请求
+                    async with httpx.AsyncClient(timeout=120.0, verify=False) as client:
+                        response = await client.post(
+                            url,
+                            headers={
+                                "Authorization": f"Bearer {config.api_key}",
+                                "Content-Type": "application/json"
+                            },
+                            json=correction_payload
+                        )
+
+                        if response.status_code == 200:
+                            correction_data = response.json()
+                            correction_content = correction_data["choices"][0]["message"].get("content", "")
+                            if correction_content:
+                                try:
+                                    result = extract_json_from_response(correction_content)
+                                except ValueError:
+                                    raise ValueError(f"修正后仍无法解析 JSON: {correction_content[:100]}...")
+
+                                return ClothesSemantics(**result)
+
+                    # 修正也失败
+                    raise ValueError(f"JSON 解析失败且无法修正: {e}")
 
                 return ClothesSemantics(**result)
 

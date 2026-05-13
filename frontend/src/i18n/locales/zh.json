@@ -9,6 +9,7 @@
   "entry": {
     "title": "录入新衣",
     "editTitle": "编辑信息",
+    "edit": "编辑",
     "saving": "保存中",
     "save": "保存",
     "saveSuccess": "保存成功！",
@@ -22,6 +23,7 @@
     "categoryBottom": "下装 (Bottom)",
     "categoryShoes": "鞋履 (Shoes)",
     "categoryAccessory": "饰品 (Accessory)",
+    "categoryUncategorized": "未分类",
     "color": "颜色",
     "colorPlaceholder": "主要颜色",
     "style": "风格",
@@ -59,10 +61,12 @@
     "bottoms": "下装",
     "shoes": "鞋履",
     "accessories": "饰品",
+    "uncategorized": "未分类",
     "loading": "加载中...",
     "noMatch": "暂无匹配衣物",
     "deleteConfirm": "确定要删除这件衣物吗？",
     "delete": "删除",
+    "analyze": "AI分析",
     "searchPlaceholder": "搜索名称、描述..."
   },
   "clothesDetail": {

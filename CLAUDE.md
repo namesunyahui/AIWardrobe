@@ -57,7 +57,7 @@ docker compose up --build -d  # Production build and run
 ### Technology Stack
 - **Frontend**: React 19, Vite 7, Tailwind CSS 4, React Router 7, i18next
 - **Backend**: FastAPI, Python, SQLite (aiosqlite)
-- **AI Services**: Google Gemini, OpenAI-compatible APIs, rembg for background removal
+- **AI Services**: Google Gemini, OpenAI-compatible APIs, rembg (支持轻量模型 u2netp/silueta)
 
 ### Directory Structure
 ```
@@ -69,7 +69,7 @@ frontend/          # React SPA (port 5173)
     utils/       # API utilities
 backend/          # FastAPI application (port 8000)
   api/           # Route handlers (upload, wardrobe, config, weather, recommendation, horoscope)
-  services/      # Business logic (gemini, openai_compatible, recommendation, weather, removebg, segment)
+  services/      # Business logic (gemini, openai_compatible, recommendation, weather, removebg, segment, image_processor)
   domain/        # Data models (clothes.py)
   storage/       # Database and config (db.py, config_store.py)
 ```
@@ -85,7 +85,7 @@ backend/          # FastAPI application (port 8000)
 | `/api/horoscope` | Daily horoscope (cached) |
 
 ### Database Schema
-- **clothes**: id, category, item, style/season/usage semantics (JSON), color semantics, description, image_filename, created_at
+- **clothes**: id, category, item, style_semantics, season_semantics (JSON 数组), color_semantics, description, image_filename, created_at (usage_semantics 已移除)
 - **horoscope_record**: Cached horoscope data with LLM reasoning
 
 ### Key Configuration
@@ -101,9 +101,17 @@ backend/          # FastAPI application (port 8000)
 ### 编码后
 - 编码任务完成后，使用 `Skill` 工具调用 `neat-freak` skill 更新全部文档
 
+### 敏感信息处理
+- **禁止提交**：密码、API Key、Token、密钥等敏感信息禁止提交到 Git
+- **环境变量**：使用 `.env` 文件存储敏感信息（已在 .gitignore 中排除）
+- **示例配置**：提供 `.env.example` 文件作为模板，包含所有需要的环境变量占位符
+- **pre-commit 钩子**：已配置 Git pre-commit 钩子，自动检测可能泄露的敏感信息
+- **检测模式**：包括 password=, api_key=, secret=, access_token=, AWS keys, GitHub tokens, OpenAI keys 等
+
 ## Important Notes
 
 - Frontend proxies API requests to backend via Vite dev server configuration
-- Image uploads are stored in `backend/static/uploads/` and served statically
+- Image uploads are stored in `backend/uploads/` and served statically
+- Image compression is applied on upload (max 1024x1024, PNG format)
 - The backend serves both API routes and the built frontend in production
 - CI/CD builds multi-platform Docker images (linux/amd64, linux/arm64) pushed to ghcr.io

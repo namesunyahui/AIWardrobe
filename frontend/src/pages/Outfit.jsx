@@ -3,64 +3,64 @@ import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Shuffle } from 'lucide-react'
 
 import { API_BASE, toImageUrl } from '../utils/api'
+import { useTheme } from '../contexts/ThemeContext'
 
-const OutfitPart = ({ items, label, proportion, currentIndex, onPrev, onNext, emptyText }) => {
-    if (!items || items.length === 0) {
-        return (
-            <div className={`min-h-0 flex-[${proportion}] flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm`}>
-                <div className="flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700">
-                    <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
-                </div>
-                <div className="min-h-0 flex-1 flex flex-col items-center justify-center p-4 bg-zinc-50/50 dark:bg-zinc-800/50">
-                    <span className="text-2xl mb-1 opacity-30">📦</span>
-                    <span className="text-xs text-zinc-400">{emptyText}</span>
-                </div>
-            </div>
-        )
-    }
-
-    const currentItem = items[currentIndex] || items[0]
+const OutfitPart = ({ items, label, currentIndex, onPrev, onNext, emptyText, style }) => {
+    const isEmpty = !items || items.length === 0
+    const currentItem = items?.[currentIndex] || items?.[0]
+    const { isDark } = useTheme()
 
     return (
-        <div className={`min-h-0 flex-[${proportion}] flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group`}>
-            <div className="flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700">
-                <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{label}</span>
-                <span className="text-[11px] bg-white dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm">
-                    {currentIndex + 1} / {items.length}
-                </span>
+        <div style={style} className="flex-shrink-0 flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700">
+                <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
+                {!isEmpty && (
+                    <span className="text-[11px] bg-white dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-600 shadow-sm">
+                        {currentIndex + 1} / {items.length}
+                    </span>
+                )}
             </div>
 
-            <div className="relative min-h-0 flex-1 flex items-center justify-center p-2.5 bg-zinc-100/50 dark:bg-zinc-800/50 overflow-hidden">
-                <img
-                    src={toImageUrl(currentItem.image_url)}
-                    alt={currentItem.item}
-                    className="w-[72%] h-[72%] object-contain drop-shadow-md group-hover:scale-[1.02] transition-transform duration-500"
-                />
+            {isEmpty ? (
+                <div className="flex items-center justify-center p-4 bg-zinc-50/50 dark:bg-zinc-800/50 h-32">
+                    <span className="text-2xl mb-1 opacity-30">📦</span>
+                    <span className="text-xs text-zinc-400 ml-2">{emptyText}</span>
+                </div>
+            ) : (
+                <div className="relative flex items-center justify-center p-4 bg-zinc-100 dark:bg-white h-[500px]">
+                    <img
+                        src={toImageUrl(currentItem.image_url)}
+                        alt={currentItem.item}
+                        className="max-w-full max-h-full object-contain"
+                    />
 
-                {items.length > 1 && (
-                    <>
-                        <button
-                            className="absolute left-1.5 w-7 h-7 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur shadow-sm flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:text-accent hover:bg-white dark:hover:bg-zinc-700 transition-all opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-105 active:scale-95 z-10"
-                            onClick={onPrev}
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
-                        <button
-                            className="absolute right-1.5 w-7 h-7 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur shadow-sm flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:text-accent hover:bg-white dark:hover:bg-zinc-700 transition-all opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:scale-105 active:scale-95 z-10"
-                            onClick={onNext}
-                        >
-                            <ChevronRight size={16} />
-                        </button>
-                    </>
-                )}
-
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/95 dark:from-zinc-900/95 to-transparent p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">{currentItem.item}</h4>
-                    {currentItem.description && (
-                        <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-1">{currentItem.description}</p>
+                    {items.length > 1 && (
+                        <>
+                            <button
+                                className="absolute left-2 w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur shadow flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:text-accent hover:bg-white dark:hover:bg-zinc-700 transition-all"
+                                onClick={onPrev}
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                            <button
+                                className="absolute right-2 w-8 h-8 rounded-full bg-white/90 dark:bg-zinc-800/90 backdrop-blur shadow flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:text-accent hover:bg-white dark:hover:bg-zinc-700 transition-all"
+                                onClick={onNext}
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                        </>
                     )}
                 </div>
-            </div>
+            )}
+
+            {currentItem && (
+                <div className="px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border-t border-zinc-100 dark:border-zinc-700">
+                    <h4 className="text-xs font-semibold truncate text-zinc-700 dark:text-zinc-300">{currentItem.item}</h4>
+                    {currentItem.description && (
+                        <p className="text-[11px] mt-0.5 line-clamp-1 text-zinc-500 dark:text-zinc-400">{currentItem.description}</p>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
@@ -120,7 +120,6 @@ export default function Outfit() {
         const matched = items.filter(item => {
             const seasons = Array.isArray(item.season_semantics) ? item.season_semantics : []
             if (seasons.length === 0) {
-                // 鞋子常被识别为“无季节标签”，默认按四季通用处理
                 return category === 'shoes'
             }
 
@@ -131,7 +130,6 @@ export default function Outfit() {
             })
         })
 
-        // 若当前季节筛选后鞋履为空，回退到全部鞋履，避免出现“没有鞋”的误解
         if (category === 'shoes' && matched.length === 0 && items.length > 0) {
             return items
         }
@@ -228,11 +226,10 @@ export default function Outfit() {
                 </div>
             </header>
 
-            <div className="min-h-0 flex-1 flex flex-col gap-2">
+            <div className="flex-1 flex flex-col gap-3 overflow-y-auto pb-4">
                 <OutfitPart
                     items={tops}
                     label={t('outfit.top')}
-                    proportion={3}
                     currentIndex={currentIndices.tops}
                     onPrev={() => handlePrev('tops')}
                     onNext={() => handleNext('tops')}
@@ -241,7 +238,6 @@ export default function Outfit() {
                 <OutfitPart
                     items={bottoms}
                     label={t('outfit.bottom')}
-                    proportion={3}
                     currentIndex={currentIndices.bottoms}
                     onPrev={() => handlePrev('bottoms')}
                     onNext={() => handleNext('bottoms')}
@@ -250,7 +246,6 @@ export default function Outfit() {
                 <OutfitPart
                     items={shoes}
                     label={t('outfit.shoes')}
-                    proportion={2}
                     currentIndex={currentIndices.shoes}
                     onPrev={() => handlePrev('shoes')}
                     onNext={() => handleNext('shoes')}
@@ -259,7 +254,6 @@ export default function Outfit() {
                 <OutfitPart
                     items={accessories}
                     label={t('outfit.accessory')}
-                    proportion={1}
                     currentIndex={currentIndices.accessories}
                     onPrev={() => handlePrev('accessories')}
                     onNext={() => handleNext('accessories')}

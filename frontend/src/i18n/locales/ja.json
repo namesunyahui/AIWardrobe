@@ -9,6 +9,7 @@
   "entry": {
     "title": "新規登録",
     "editTitle": "情報編集",
+    "edit": "編集",
     "saving": "保存中",
     "save": "保存",
     "saveSuccess": "保存しました！",
@@ -22,6 +23,7 @@
     "categoryBottom": "ボトムス",
     "categoryShoes": "シューズ",
     "categoryAccessory": "アクセサリー",
+    "categoryUncategorized": "未分類",
     "color": "カラー",
     "colorPlaceholder": "メインカラー",
     "style": "スタイル",
@@ -59,10 +61,12 @@
     "bottoms": "ボトムス",
     "shoes": "シューズ",
     "accessories": "アクセサリー",
+    "uncategorized": "未分類",
     "loading": "読み込み中...",
     "noMatch": "一致する衣類がありません",
     "deleteConfirm": "この衣類を削除しますか？",
     "delete": "削除",
+    "analyze": "AI分析",
     "searchPlaceholder": "名前、説明で検索..."
   },
   "clothesDetail": {

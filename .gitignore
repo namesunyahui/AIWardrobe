@@ -23,3 +23,28 @@ frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.local
+
+# Environment files (contains secrets)
+.env
+.env.local
+.env.production
+.env.*.local
+secrets.env
+*.pem
+*.key
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# AI/ML API Keys (specific patterns)
+gemini-api-key*
+openai-key*
+anthropic-key*
+api-keys.json
+credentials.json
+
+# MinIO / S3
+*.minio*
+minio.*
