@@ -49,8 +49,22 @@ uvicorn main:app --reload --port 8000  # API server on port 8000
 
 ### Docker
 ```bash
-docker compose up --build -d  # Production build and run
+# 构建并启动 (Windows/WSL)
+powershell.exe -NoProfile -Command "& {Set-Location 'C:\sunyahuiProject\AIWardrobe'; docker compose build}"
+powershell.exe -NoProfile -Command "& {Set-Location 'C:\sunyahuiProject\AIWardrobe'; docker compose up -d}"
+
+# 强制重建容器
+powershell.exe -NoProfile -Command "& {Set-Location 'C:\sunyahuiProject\AIWardrobe'; docker compose down; docker compose up -d --force-recreate}"
+
+# 查看日志
+powershell.exe -NoProfile -Command "& {Set-Location 'C:\sunyahuiProject\AIWardrobe'; docker compose logs -f}"
 ```
+
+**注意**：在 Windows/WSL 环境下调用 Docker 必须使用 `powershell.exe`，不能直接在 bash 中调用。
+
+### Docker 镜像
+- 镜像地址：`ghcr.io/namesunyahui/aiwardrobe:latest`
+- 部署服务器时使用：`docker pull ghcr.io/namesunyahui/aiwardrobe:latest`
 
 ## Architecture
 
