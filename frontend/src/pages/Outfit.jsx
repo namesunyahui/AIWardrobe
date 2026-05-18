@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Shuffle } from 'lucide-react'
 
 import { API_BASE, toImageUrl } from '../utils/api'
 import { useTheme } from '../contexts/ThemeContext'
+import { useAuth } from '../contexts/AuthContext'
 
 const OutfitPart = ({ items, label, currentIndex, onPrev, onNext, emptyText, style }) => {
     const isEmpty = !items || items.length === 0
@@ -67,6 +69,9 @@ const OutfitPart = ({ items, label, currentIndex, onPrev, onNext, emptyText, sty
 
 export default function Outfit() {
     const { t } = useTranslation()
+    const { token } = useAuth()
+    const location = useLocation()
+    const suggested = location.state || {}
     const [wardrobe, setWardrobe] = useState({ tops: [], bottoms: [], shoes: [], accessories: [] })
     const [loading, setLoading] = useState(true)
     const [filterSeason, setFilterSeason] = useState('all')
@@ -82,11 +87,14 @@ export default function Outfit() {
         const controller = new AbortController()
         void fetchWardrobe(controller.signal)
         return () => controller.abort()
-    }, [])
+    }, [token])
 
     const fetchWardrobe = async (signal) => {
         try {
-            const response = await fetch(`${API_BASE}/wardrobe`, { signal })
+            const response = await fetch(`${API_BASE}/wardrobe`, {
+                headers: { Authorization: `Bearer ${token}` },
+                signal
+            })
             if (response.ok) {
                 const data = await response.json()
                 setWardrobe({
@@ -141,14 +149,19 @@ export default function Outfit() {
     const shoes = filterBySeason(wardrobe.shoes, 'shoes')
     const accessories = filterBySeason(wardrobe.accessories, 'accessories')
 
+    // 如果有推荐的服装，优先显示推荐的几件
+    const displayTops = suggested.suggestedTop ? [suggested.suggestedTop] : tops
+    const displayBottoms = suggested.suggestedBottom ? [suggested.suggestedBottom] : bottoms
+    const displayShoes = suggested.suggestedShoes ? [suggested.suggestedShoes] : shoes
+
     const handlePrev = (category) => {
         setCurrentIndices(prev => {
             const items = category === 'tops'
-                ? tops
+                ? displayTops
                 : category === 'bottoms'
-                    ? bottoms
+                    ? displayBottoms
                     : category === 'shoes'
-                        ? shoes
+                        ? displayShoes
                         : accessories
             const newIndex = prev[category] > 0 ? prev[category] - 1 : items.length - 1
             return { ...prev, [category]: newIndex }
@@ -158,11 +171,11 @@ export default function Outfit() {
     const handleNext = (category) => {
         setCurrentIndices(prev => {
             const items = category === 'tops'
-                ? tops
+                ? displayTops
                 : category === 'bottoms'
-                    ? bottoms
+                    ? displayBottoms
                     : category === 'shoes'
-                        ? shoes
+                        ? displayShoes
                         : accessories
             const newIndex = prev[category] < items.length - 1 ? prev[category] + 1 : 0
             return { ...prev, [category]: newIndex }
@@ -171,9 +184,9 @@ export default function Outfit() {
 
     const shuffleOutfit = () => {
         setCurrentIndices({
-            tops: tops.length > 0 ? Math.floor(Math.random() * tops.length) : 0,
-            bottoms: bottoms.length > 0 ? Math.floor(Math.random() * bottoms.length) : 0,
-            shoes: shoes.length > 0 ? Math.floor(Math.random() * shoes.length) : 0,
+            tops: displayTops.length > 0 ? Math.floor(Math.random() * displayTops.length) : 0,
+            bottoms: displayBottoms.length > 0 ? Math.floor(Math.random() * displayBottoms.length) : 0,
+            shoes: displayShoes.length > 0 ? Math.floor(Math.random() * displayShoes.length) : 0,
             accessories: accessories.length > 0 ? Math.floor(Math.random() * accessories.length) : 0
         })
     }
@@ -193,11 +206,8 @@ export default function Outfit() {
     )
 
     return (
-        <div
-            className="bg-[var(--bg-primary)] px-3 pt-3 pb-2 flex flex-col overflow-hidden"
-            style={{ height: 'calc(100dvh - 4rem - env(safe-area-inset-bottom))' }}
-        >
-            <header className="shrink-0 mb-2">
+        <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col pt-safe pb-24 overflow-hidden">
+            <header className="shrink-0 px-3 pt-3 pb-2">
                 <div className="flex items-center justify-between mb-2">
                     <h2 className="text-[22px] font-serif font-bold tracking-tight text-[var(--text-primary)]">{t('outfit.title')}</h2>
                     <button
@@ -226,9 +236,9 @@ export default function Outfit() {
                 </div>
             </header>
 
-            <div className="flex-1 flex flex-col gap-3 overflow-y-auto pb-4">
+            <div className="flex-1 flex flex-col gap-3 overflow-y-auto px-3 pb-4">
                 <OutfitPart
-                    items={tops}
+                    items={displayTops}
                     label={t('outfit.top')}
                     currentIndex={currentIndices.tops}
                     onPrev={() => handlePrev('tops')}
@@ -236,7 +246,7 @@ export default function Outfit() {
                     emptyText={t('outfit.noItems', { label: t('outfit.top') })}
                 />
                 <OutfitPart
-                    items={bottoms}
+                    items={displayBottoms}
                     label={t('outfit.bottom')}
                     currentIndex={currentIndices.bottoms}
                     onPrev={() => handlePrev('bottoms')}
@@ -244,7 +254,7 @@ export default function Outfit() {
                     emptyText={t('outfit.noItems', { label: t('outfit.bottom') })}
                 />
                 <OutfitPart
-                    items={shoes}
+                    items={displayShoes}
                     label={t('outfit.shoes')}
                     currentIndex={currentIndices.shoes}
                     onPrev={() => handlePrev('shoes')}

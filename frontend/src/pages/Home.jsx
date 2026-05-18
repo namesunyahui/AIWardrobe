@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Settings as SettingsIcon, RefreshCw, Sparkles, CloudSun, Droplets, Wind, Thermometer, ChevronLeft, ChevronRight, Shirt, ArrowRight } from 'lucide-react'
-import Settings from '../components/Settings'
+import { RefreshCw, Sparkles, CloudSun, Droplets, Wind, Thermometer, ChevronLeft, ChevronRight, Shirt, ArrowRight } from 'lucide-react'
 import { API_BASE, toImageUrl } from '../utils/api'
+import { useAuth } from '../contexts/AuthContext'
 const FALLBACK_LOCATION = '上海, 上海市, 中国'
 
 const formatDate = (locale) => {
@@ -22,6 +22,7 @@ const formatDate = (locale) => {
 export default function Home() {
     const { t, i18n } = useTranslation()
     const navigate = useNavigate()
+    const { token } = useAuth()
 
     const [weather, setWeather] = useState(null)
     const [wardrobe, setWardrobe] = useState({ tops: [], bottoms: [], shoes: [], accessories: [] })
@@ -32,7 +33,6 @@ export default function Home() {
     const [wardrobeLoading, setWardrobeLoading] = useState(true)
     const [horoscopeLoading, setHoroscopeLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
-    const [showSettings, setShowSettings] = useState(false)
     const [activeIndex, setActiveIndex] = useState(0)
 
     const carouselItems = useMemo(() => ([
@@ -93,7 +93,8 @@ export default function Home() {
     const fetchWeather = async (location) => {
         setWeatherLoading(true)
         try {
-            const response = await fetch(`${API_BASE}/weather?location=${encodeURIComponent(location)}`)
+            const lang = i18n.language || 'zh'
+            const response = await fetch(`${API_BASE}/weather?location=${encodeURIComponent(location)}&locale=${encodeURIComponent(lang)}`)
             if (response.ok) {
                 setWeather(await response.json())
             }
@@ -107,7 +108,9 @@ export default function Home() {
     const fetchWardrobe = async () => {
         setWardrobeLoading(true)
         try {
-            const response = await fetch(`${API_BASE}/wardrobe`)
+            const response = await fetch(`${API_BASE}/wardrobe`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
             if (response.ok) {
                 const data = await response.json()
                 setWardrobe({
@@ -165,19 +168,14 @@ export default function Home() {
 
     useEffect(() => {
         const initializeDashboard = async () => {
+            if (!token) return
             const location = await fetchConfiguredLocation()
             setDefaultLocation(location)
             await fetchDashboard(true, location)
         }
 
         void initializeDashboard()
-    }, [])
-
-    const handleSettingsSaved = async () => {
-        const location = await fetchConfiguredLocation()
-        setDefaultLocation(location)
-        await fetchDashboard(false, location)
-    }
+    }, [token])
 
     const getCategoryLabel = (category) => {
         if (category === 'top') return t('home.categoryTop')
@@ -203,13 +201,6 @@ export default function Home() {
                         title={t('home.refresh')}
                     >
                         <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
-                    </button>
-                    <button
-                        className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-900/90 flex items-center justify-center text-zinc-600 dark:text-zinc-300 hover:text-accent transition-colors cursor-pointer"
-                        onClick={() => setShowSettings(true)}
-                        title={t('settings.title')}
-                    >
-                        <SettingsIcon size={18} />
                     </button>
                 </div>
             </header>
@@ -412,7 +403,7 @@ export default function Home() {
                             {horoscope && !horoscope.is_configured && (
                                 <button
                                     className="mt-4 w-full py-2.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium hover:opacity-90 cursor-pointer transition-opacity"
-                                    onClick={() => setShowSettings(true)}
+                                    onClick={() => navigate('/profile')}
                                 >
                                     {t('home.setZodiac')}
                                 </button>
@@ -420,13 +411,20 @@ export default function Home() {
                         </>
                     )}
                 </section>
+
+                {/* 今日穿搭 Button */}
+                <button
+                    onClick={() => navigate('/outfit')}
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-accent to-accent/80 text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                    <Shirt size={18} />
+                    {t('outfit.title')}
+                    <ArrowRight size={16} />
+                </button>
             </main>
 
-            <Settings
-                isOpen={showSettings}
-                onClose={() => setShowSettings(false)}
-                onSave={handleSettingsSaved}
-            />
+            {/* 页面底部间距 */}
+            <div className="h-4"></div>
         </div>
     )
 }

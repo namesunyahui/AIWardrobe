@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { API_BASE } from '../utils/api'
+import { useAuth } from './AuthContext'
 
 const UploadContext = createContext(null)
 
@@ -17,6 +18,7 @@ const INITIAL_UPLOAD_STATE = {
 export function UploadProvider({ children }) {
   const [state, setState] = useState(INITIAL_UPLOAD_STATE)
   const uploadingRef = useRef(false)
+  const { token } = useAuth()
 
   const setStage = useCallback((statusKey, current, total) => {
     setState(prev => ({
@@ -38,6 +40,9 @@ export function UploadProvider({ children }) {
     setStage('upload.removingBg', current, total)
     const response = await fetch(`${API_BASE}/upload`, {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
       body: formData
     })
 
@@ -48,7 +53,7 @@ export function UploadProvider({ children }) {
     }
 
     return response.json()
-  }, [setStage])
+  }, [setStage, token])
 
   const uploadFiles = useCallback(async (files) => {
     if (!files || files.length === 0) {

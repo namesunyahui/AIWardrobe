@@ -1,15 +1,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
-import { Sparkles, RefreshCw, Mic, MicOff } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Sparkles, RefreshCw, Mic, MicOff, Heart } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { useRecommendation } from '../contexts/RecommendationContext'
+import { useAuth } from '../contexts/AuthContext'
 
 import { toImageUrl } from '../utils/api'
 
 export default function Recommendation() {
     const { t, i18n } = useTranslation()
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const { user } = useAuth()
     const {
         loading,
         error,
@@ -27,10 +30,13 @@ export default function Recommendation() {
         goalRaw,
         goalNormalized,
         selectedCity,
-        fetchRecommendation
+        fetchRecommendation,
+        recordId,
+        isFavorited,
+        toggleFavorite
     } = useRecommendation()
 
-    console.log('[Recommendation page] weather:', !!weather, 'recommendation:', !!recommendation, 'loading:', loading)
+    console.log('[Recommendation page] user:', user, 'recordId:', recordId, 'isFavorited:', isFavorited, 'weather:', !!weather)
 
     const [displayedRecommendation, setDisplayedRecommendation] = useState('')
     const [goalInput, setGoalInput] = useState('')
@@ -39,6 +45,26 @@ export default function Recommendation() {
     const [speechError, setSpeechError] = useState('')
     const [hasAnimated, setHasAnimated] = useState(false)
     const recognitionRef = useRef(null)
+
+    // 从URL参数初始化goalInput
+    useEffect(() => {
+        const goalParam = searchParams.get('goal')
+        if (goalParam) {
+            setGoalInput(goalParam)
+        }
+    }, [searchParams])
+
+    // 自动获取推荐（如果有goal参数）
+    useEffect(() => {
+        const goalParam = searchParams.get('goal')
+        const locationParam = searchParams.get('location')
+        // 如果有目标参数，自动触发推荐
+        if (goalParam && selectedCity && !recommendation) {
+            setTimeout(() => {
+                fetchRecommendation(selectedCity.id, selectedCity.name, goalParam)
+            }, 500)
+        }
+    }, [selectedCity, searchParams, recommendation])
 
     useEffect(() => {
         if (!recommendation) {
@@ -366,9 +392,20 @@ export default function Recommendation() {
                                 <Sparkles size={18} className="text-accent" />
                                 <h3 className="font-serif font-bold text-zinc-900 dark:text-zinc-100 tracking-tight text-lg">{t('recommendation.aiTitle')}</h3>
                             </div>
-                            <button className="text-zinc-400 hover:text-accent hover:rotate-180 transition-all duration-500 p-2" onClick={refreshRecommendation} title={t('recommendation.regenerate')}>
-                                <RefreshCw size={16} />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                {recordId && (
+                                    <button
+                                        className={`p-2 transition-all duration-300 ${isFavorited ? 'text-red-500' : 'text-zinc-400 hover:text-red-500'}`}
+                                        onClick={toggleFavorite}
+                                        title={isFavorited ? t('profile.removeFavorite') : t('profile.addFavorite')}
+                                    >
+                                        <Heart size={16} className={isFavorited ? 'fill-current' : ''} />
+                                    </button>
+                                )}
+                                <button className="text-zinc-400 hover:text-accent hover:rotate-180 transition-all duration-500 p-2" onClick={refreshRecommendation} title={t('recommendation.regenerate')}>
+                                    <RefreshCw size={16} />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-zinc-200 dark:border-zinc-800">
@@ -387,6 +424,22 @@ export default function Recommendation() {
                         </div>
                     )}
 
+                    {/* 操作按钮 - 始终显示 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
+                        <button className="btn-secondary" onClick={refreshRecommendation}>
+                            <RefreshCw size={15} />
+                            {t('recommendation.regenerate')}
+                        </button>
+                        <button className="btn-secondary" onClick={() => navigate('/outfit', { state: { suggestedTop, suggestedBottom, suggestedShoes } })}>
+                            <Sparkles size={15} />
+                            {t('recommendation.goOutfit')}
+                        </button>
+                        <button className="btn-secondary" onClick={() => navigate('/wardrobe')}>
+                            <Sparkles size={15} />
+                            {t('recommendation.goWardrobe')}
+                        </button>
+                    </div>
+
                     {(suggestedTop || suggestedBottom || suggestedShoes) && (
                         <div className="space-y-4 pt-2">
                             <h3 className="font-serif font-bold text-zinc-900 dark:text-zinc-100 tracking-tight text-lg pl-1">{t('recommendation.suggestedCombo')}</h3>
@@ -394,21 +447,6 @@ export default function Recommendation() {
                                 {renderClothingCard(suggestedTop, t('recommendation.topWear'), selectionReasons?.top)}
                                 {renderClothingCard(suggestedBottom, t('recommendation.bottomWear'), selectionReasons?.bottom)}
                                 {renderClothingCard(suggestedShoes, t('recommendation.shoesWear'), selectionReasons?.shoes)}
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <button className="btn-secondary" onClick={refreshRecommendation}>
-                                    <RefreshCw size={15} />
-                                    {t('recommendation.regenerate')}
-                                </button>
-                                <button className="btn-secondary" onClick={() => navigate('/outfit')}>
-                                    <Sparkles size={15} />
-                                    {t('recommendation.goOutfit')}
-                                </button>
-                                <button className="btn-secondary" onClick={() => navigate('/wardrobe')}>
-                                    <Sparkles size={15} />
-                                    {t('recommendation.goWardrobe')}
-                                </button>
                             </div>
                         </div>
                     )}

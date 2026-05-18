@@ -28,7 +28,7 @@ Upload clothing photos, remove backgrounds automatically, classify garments with
 | Feature | Description |
 | :--- | :--- |
 | **Smart Upload** | Upload clothing photos, auto-remove backgrounds with `rembg`, analyze category, color, and style via AI vision models |
-| **Weather-Based Styling** | Integrates free global weather data (Open-Meteo) to generate outfit suggestions based on real-time conditions |
+| **Weather-Based Styling** | Auto-selects based on language: Chinese uses QWeather (fast), Japanese/English uses Open-Meteo, generates outfit suggestions based on real-time weather |
 | **Digital Wardrobe** | Browse, search, and manage your clothing in a structured wardrobe view |
 | **AI Recommendations** | Supports Gemini and OpenAI-compatible providers for personalized outfit generation |
 | **Responsive UI** | Optimized for desktop, tablet, and mobile with a modern Tailwind CSS interface |
@@ -56,7 +56,7 @@ Upload clothing photos, remove backgrounds automatically, classify garments with
 
 <table>
 <tr><td><b>Frontend</b></td><td>React + Vite + Tailwind CSS</td></tr>
-<tr><td><b>Backend</b></td><td>FastAPI + SQLite</td></tr>
+<tr><td><b>Backend</b></td><td>FastAPI + MySQL/SQLite</td></tr>
 <tr><td><b>AI</b></td><td>Google Gemini / OpenAI-compatible APIs + rembg</td></tr>
 <tr><td><b>Deploy</b></td><td>Docker / Docker Compose (amd64 & arm64)</td></tr>
 </table>
@@ -126,10 +126,10 @@ cd frontend && npm run dev
 
 ```bash
 cp backend/.env.example backend/.env
+# Edit .env with your API keys and MinIO configuration
 docker build -t aiwardrobe:local .
 docker run -d --name ai_wardrobe -p 8000:8000 \
   --env-file backend/.env \
-  -v $(pwd)/backend/uploads:/app/backend/uploads \
   -v $(pwd)/backend/data:/app/backend/data \
   aiwardrobe:local
 ```
@@ -137,25 +137,24 @@ docker run -d --name ai_wardrobe -p 8000:8000 \
 ### Using Prebuilt Image
 
 ```bash
-docker pull ghcr.io/leoz9/aiwardrobe:latest
+docker pull ghcr.io/namesunyahui/aiwardrobe:latest
 docker run -d --name ai_wardrobe -p 8000:8000 \
   --env-file backend/.env \
-  -v $(pwd)/backend/uploads:/app/backend/uploads \
   -v $(pwd)/backend/data:/app/backend/data \
-  ghcr.io/leoz9/aiwardrobe:latest
+  ghcr.io/namesunyahui/aiwardrobe:latest
 ```
 
 ### Docker Compose
 
 ```bash
-git clone https://github.com/leoz9/AIWardrobe.git && cd AIWardrobe
-cp backend/.env.example backend/.env  # Edit .env with your API keys
+git clone https://github.com/namesunyahui/AIWardrobe.git && cd AIWardrobe
+cp backend/.env.example backend/.env  # Edit .env with your API keys and MinIO config
 docker compose up --build -d
 ```
 
 Access at http://localhost:8000 &nbsp;|&nbsp; API docs at http://localhost:8000/docs
 
-Data is persisted in `backend/data` and `backend/uploads`.
+Data is persisted in `backend/data` directory, images are stored in MinIO object storage.
 
 ## ⭐ Star History
 

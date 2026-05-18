@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Upload as UploadIcon, Camera, Image as ImageIcon, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useUpload } from '../contexts/UploadContext'
+import { showToast } from './Toast'
 
 export default function Upload({ onUploadSuccess }) {
     const { t } = useTranslation()
@@ -38,7 +39,7 @@ export default function Upload({ onUploadSuccess }) {
 
     useEffect(() => {
         if (!batchResult) return
-        alert(t('upload.batchResult', batchResult))
+        showToast('success', t('upload.batchResult', batchResult))
         consumeBatchResult()
     }, [batchResult, t, consumeBatchResult])
 
@@ -47,7 +48,7 @@ export default function Upload({ onUploadSuccess }) {
         const translatedError = lastError === 'INVALID_IMAGE_TYPE'
             ? t('upload.selectImage')
             : lastError
-        alert(`${t('upload.uploadFailed')}: ${translatedError}`)
+        showToast('error', `${t('upload.uploadFailed')}: ${translatedError}`)
         consumeLastError()
     }, [lastError, t, consumeLastError])
 
@@ -94,7 +95,7 @@ export default function Upload({ onUploadSuccess }) {
             setShowCamera(true)
         } catch (err) {
             console.error('Camera error:', err)
-            alert(t('upload.cameraError'))
+            showToast('error', t('upload.cameraError'))
         }
     }
 

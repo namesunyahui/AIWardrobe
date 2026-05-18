@@ -11,9 +11,7 @@ from typing import List, Optional
 from storage.config_store import load_config
 from domain.prompts import CLOTHES_SEMANTIC_PROMPT
 from domain.clothes import ClothesSemantics
-
-MAX_RETRIES = 3
-INITIAL_DELAY = 1.0  # 秒
+from domain.constants import normalize_api_base, MAX_RETRIES, INITIAL_DELAY
 
 
 async def fetch_available_models() -> List[dict]:
@@ -26,9 +24,7 @@ async def fetch_available_models() -> List[dict]:
         return []
     
     # 确保 api_base 格式正确
-    api_base = config.api_base.rstrip("/")
-    if not api_base.endswith("/v1"):
-        api_base = api_base + "/v1"
+    api_base = normalize_api_base(config.api_base)
     
     url = f"{api_base}/models"
     
@@ -172,9 +168,7 @@ async def analyze_clothes_openai(image_bytes: bytes) -> ClothesSemantics:
         raise ValueError("请先配置 API Key")
 
     # 确保 api_base 格式正确
-    api_base = config.api_base.rstrip("/")
-    if not api_base.endswith("/v1"):
-        api_base = api_base + "/v1"
+    api_base = normalize_api_base(config.api_base)
 
     url = f"{api_base}/chat/completions"
 

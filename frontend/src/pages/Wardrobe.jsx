@@ -5,10 +5,14 @@ import FilterBar from '../components/FilterBar'
 import { Trash2, Sparkles } from 'lucide-react'
 
 import { API_BASE, toImageUrl } from '../utils/api'
+import { useAuth } from '../contexts/AuthContext'
+import { showToast } from '../components/Toast'
+import { showConfirm } from '../components/ConfirmDialog'
 
 export default function Wardrobe() {
     const { t } = useTranslation()
     const navigate = useNavigate()
+    const { token } = useAuth()
     const [wardrobe, setWardrobe] = useState({ tops: [], bottoms: [], shoes: [], accessories: [], uncategorized: [] })
     const [loading, setLoading] = useState(true)
     const [analyzingId, setAnalyzingId] = useState(null)
@@ -22,11 +26,14 @@ export default function Wardrobe() {
         const controller = new AbortController()
         void fetchWardrobe(controller.signal)
         return () => controller.abort()
-    }, [])
+    }, [token])
 
     const fetchWardrobe = useCallback(async (signal) => {
         try {
-            const response = await fetch(`${API_BASE}/wardrobe`, { signal })
+            const response = await fetch(`${API_BASE}/wardrobe`, {
+                headers: { Authorization: `Bearer ${token}` },
+                signal
+            })
             if (response.ok) {
                 const data = await response.json()
                 setWardrobe({
@@ -49,7 +56,15 @@ export default function Wardrobe() {
     }, [])
 
     const handleDelete = async (id) => {
-        if (!confirm(t('wardrobe.deleteConfirm'))) return
+        const confirmed = await showConfirm({
+            title: t('wardrobe.delete'),
+            message: t('wardrobe.deleteConfirm'),
+            confirmText: t('confirm'),
+            cancelText: t('cancel'),
+            type: 'danger'
+        })
+
+        if (!confirmed) return
 
         const previousWardrobe = wardrobe
         setWardrobe(prev => ({
@@ -62,7 +77,8 @@ export default function Wardrobe() {
 
         try {
             const response = await fetch(`${API_BASE}/clothes/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
             })
             if (!response.ok) {
                 setWardrobe(previousWardrobe)
@@ -85,7 +101,8 @@ export default function Wardrobe() {
         setAnalyzingId(id)
         try {
             const response = await fetch(`${API_BASE}/upload/analyze/${id}`, {
-                method: 'POST'
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` }
             })
             if (response.ok) {
                 // 刷新数据
@@ -93,11 +110,11 @@ export default function Wardrobe() {
                 await fetchWardrobe(controller.signal)
             } else {
                 const error = await response.json()
-                alert(error.detail || 'AI分析失败')
+                showToast('error', error.detail || t('wardrobe.analyzeFailed'))
             }
         } catch (error) {
             console.error('Analyze error:', error)
-            alert('AI分析失败，请稍后重试')
+            showToast('error', t('wardrobe.analyzeFailed'))
         } finally {
             setAnalyzingId(null)
         }
@@ -142,7 +159,7 @@ export default function Wardrobe() {
     )
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] animate-fade-in pb-8">
+        <div className="bg-[var(--bg-primary)] animate-fade-in pb-8">
             <header className="glass-header px-4 py-4 sticky top-0">
                 <FilterBar onSearch={handleSearch} onFilterChange={handleFilterChange} />
             </header>

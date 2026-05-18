@@ -1,17 +1,29 @@
 """
-天气服务 - Open-Meteo 免费全球天气接口（无需 API Key）
-文档: https://open-meteo.com/
+天气服务 - 支持多种天气数据源
+- 中文：和风天气 QWeather（国内快）
+- 日语/英语：Open-Meteo 免费全球接口
+文档: https://open-meteo.com/ , https://qweather.com/
 """
+import os
 import re
 import time
+import logging
 from typing import Optional, List
 
 import httpx
 from pydantic import BaseModel
 
-# 天气缓存：{location: (data, timestamp)}
-_WEATHER_CACHE: dict = {}
-_CACHE_TTL_SECONDS = 600  # 10分钟缓存
+# 配置日志
+logger = logging.getLogger(__name__)
+
+# 和风天气 API 配置
+QWEATHER_API_KEY = os.getenv("QWEATHER_API_KEY", "")
+QWEATHER_API_HOST = os.getenv("QWEATHER_API_HOST", "devapi.qweather.com")
+
+from domain.constants import CACHE_TTL_SECONDS
+
+# 天气缓存
+_WEATHER_CACHE = {}
 
 
 class CityInfo(BaseModel):
@@ -555,7 +567,7 @@ async def search_city(query: str, limit: int = 10) -> List[CityInfo]:
                     _merge_ranked_city(ranked_cities, city, base_score + rank_bonus)
     except Exception as e:
         geocoding_failed = True
-        print(f"⚠️  Geocoding 查询失败，使用内置城市兜底: {e}")
+        logger.warning(f"Geocoding 查询失败，使用内置城市兜底: {e}")
 
     if ranked_cities:
         ranked_results = sorted(
@@ -565,7 +577,7 @@ async def search_city(query: str, limit: int = 10) -> List[CityInfo]:
         )
         return [city for city, _ in ranked_results[:limit]]
     if geocoding_failed:
-        print("⚠️  Geocoding 查询不可用，使用内置城市兜底")
+        logger.warning("Geocoding 查询不可用，使用内置城市兜底")
 
     # 回退方案：内置城市模糊匹配
     matched_cities: List[CityInfo] = []
@@ -736,8 +748,159 @@ async def _fetch_open_meteo_now(latitude: float, longitude: float) -> Optional[W
             now=now,
         )
     except Exception as e:
-        print(f"❌ 获取 Open-Meteo 天气信息失败: {e}")
+        logger.error(f"获取 Open-Meteo 天气信息失败: {e}")
         return None
+
+
+async def _fetch_qweather_now(latitude: float, longitude: float) -> Optional[WeatherResponse]:
+    """和风天气 API 调用"""
+    if not QWEATHER_API_KEY:
+        logger.warning("未配置 QWEATHER_API_KEY，使用 Open-Meteo 替代")
+        return None
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # 和风天气 V7 API
+            url = f"https://{QWEATHER_API_HOST}/v7/weather/now"
+            params = {
+                "location": f"{longitude},{latitude}",
+                "key": QWEATHER_API_KEY,
+            }
+            response = await client.get(url, params=params, timeout=10.0)
+            response.raise_for_status()
+            payload = response.json()
+
+        if payload.get("code") != "200":
+            logger.error(f"和风天气 API 错误: {payload.get('code')}")
+            return None
+
+        now_data = payload.get("now", {})
+        obs_time = now_data.get("obsTime", "")
+
+        # 和风天气代码映射到统一图标
+        qweather_code = int(now_data.get("icon", 0))
+        icon_code, condition_text = map_qweather_code(qweather_code)
+
+        now = WeatherNow(
+            obsTime=obs_time,
+            temp=now_data.get("temp", "20"),
+            feelsLike=now_data.get("feelsLike", "20"),
+            icon=icon_code,
+            text=condition_text,
+            wind360=now_data.get("wind360", "0"),
+            windDir=now_data.get("windDir", "北风"),
+            windScale=now_data.get("windScale", "0"),
+            windSpeed=now_data.get("windSpeed", "0"),
+            humidity=now_data.get("humidity", "60"),
+            precip=now_data.get("precip", "0"),
+            pressure=now_data.get("pressure", "1013"),
+            vis=now_data.get("vis", "10"),
+            cloud=None,
+            dew=None,
+        )
+
+        return WeatherResponse(
+            code="200",
+            updateTime=obs_time,
+            fxLink="https://qweather.com/",
+            now=now,
+        )
+    except Exception as e:
+        logger.error(f"获取和风天气信息失败: {e}")
+        return None
+
+
+def map_qweather_code(code: int) -> tuple[str, str]:
+    """和风天气图标代码映射"""
+    # 和风天气图标: https://dev.qweather.com/ docs/symbols/
+    code_map = {
+        100: ("晴", "100"),
+        101: ("晴间多云", "101"),
+        102: ("多云", "102"),
+        103: ("多云", "102"),
+        104: ("阴", "104"),
+        150: ("晴", "150"),  # 夜间晴
+        151: ("晴间多云", "151"),
+        152: ("多云", "152"),
+        153: ("多云", "152"),
+        200: ("有风", "200"),
+        201: ("大风", "201"),
+        202: ("大风", "202"),
+        203: ("大风", "203"),
+        204: ("大风", "204"),
+        205: ("大风", "205"),
+        206: ("大风", "206"),
+        207: ("大风", "207"),
+        208: ("大风", "208"),
+        209: ("大风", "209"),
+        210: ("大风", "210"),
+        211: ("大风", "211"),
+        212: ("大风", "212"),
+        213: ("大风", "213"),
+        300: ("轻度雾霾", "300"),
+        301: ("雾霾", "301"),
+        302: ("重度雾霾", "302"),
+        303: ("重度雾霾", "303"),
+        304: ("雾", "304"),
+        305: ("小雨", "305"),
+        306: ("中雨", "306"),
+        307: ("大雨", "307"),
+        308: ("暴雨", "308"),
+        309: ("大雨", "309"),
+        310: ("暴雨", "310"),
+        311: ("大暴雨", "311"),
+        312: ("特大暴雨", "312"),
+        313: ("冻雨", "313"),
+        314: ("小雪", "314"),
+        315: ("中雪", "315"),
+        316: ("大雪", "316"),
+        317: ("暴雪", "317"),
+        318: ("小雪", "318"),
+        319: ("大雪", "319"),
+        320: ("暴雪", "320"),
+        321: ("小雪", "321"),
+        322: ("中雪", "322"),
+        323: ("大雪", "323"),
+        324: ("暴雪", "324"),
+        325: ("小雪", "325"),
+        326: ("中雪", "326"),
+        327: ("大雪", "327"),
+        328: ("暴雪", "328"),
+        329: ("小雪", "329"),
+        330: ("中雪", "330"),
+        331: ("大雪", "331"),
+        332: ("暴雪", "332"),
+        400: ("小雪", "400"),
+        401: ("中雪", "401"),
+        402: ("大雪", "402"),
+        403: ("暴雪", "403"),
+        404: ("小雪", "404"),
+        405: ("中雪", "405"),
+        406: ("大雪", "406"),
+        407: ("暴雪", "407"),
+        500: ("大雾", "500"),
+        501: ("大雾", "501"),
+        502: ("重度雾霾", "502"),
+        503: ("大雾", "503"),
+        504: ("大雾", "504"),
+        505: ("大雾", "505"),
+        506: ("大雾", "506"),
+        507: ("大雾", "507"),
+        508: ("大雾", "508"),
+        509: ("大雾", "509"),
+        510: ("大雾", "510"),
+        511: ("强浓雾", "511"),
+        512: ("大雾", "512"),
+        513: ("大雾", "513"),
+        514: ("大雾", "514"),
+        515: ("大雾", "515"),
+        800: ("雷阵雨", "302"),
+        801: ("雷阵雨", "302"),
+        802: ("雷阵雨", "302"),
+        803: ("雷阵雨", "302"),
+        804: ("多云", "102"),
+    }
+    return code_map.get(code, ("未知", "999"))
 
 
 async def get_qweather_now(location: str) -> Optional[WeatherResponse]:
@@ -753,28 +916,42 @@ async def get_qweather_now(location: str) -> Optional[WeatherResponse]:
     return await _fetch_open_meteo_now(latitude, longitude)
 
 
-async def get_weather(location: str = DEFAULT_LOCATION_QUERY) -> Optional[WeatherInfo]:
+def is_chinese_locale(locale: str) -> bool:
+    """判断是否为中文语言"""
+    return locale and locale.lower().startswith("zh")
+
+
+async def get_weather(location: str = DEFAULT_LOCATION_QUERY, locale: str = "zh") -> Optional[WeatherInfo]:
     """
     获取天气信息（简化版，带缓存）
 
     Args:
         location: 城市名 / 经纬度坐标 / 历史 LocationID
+        locale: 语言标识 (zh/ja/en 等)
 
     Returns:
         WeatherInfo 或 None
     """
-    # 检查缓存
-    cache_key = location.strip().lower()
+    # 中文使用和风天气，其他语言使用 Open-Meteo
+    use_qweather = is_chinese_locale(locale) and QWEATHER_API_KEY
+
+    # 检查缓存（包含语言）
+    cache_key = f"{locale}:{location.strip().lower()}"
     if cache_key in _WEATHER_CACHE:
         data, timestamp = _WEATHER_CACHE[cache_key]
-        if time.time() - timestamp < _CACHE_TTL_SECONDS:
+        if time.time() - timestamp < CACHE_TTL_SECONDS:
             return data
 
     resolved_location, display_location = await resolve_location(location)
-    weather_response = await get_qweather_now(resolved_location)
+
+    # 根据语言选择天气源
+    if use_qweather:
+        weather_response = await _fetch_qweather_from_location(resolved_location)
+    else:
+        weather_response = await get_qweather_now(resolved_location)
 
     if not weather_response:
-        print("⚠️  使用模拟天气数据")
+        logger.warning("使用模拟天气数据")
         weather_info = WeatherInfo(
             temperature=20.0,
             feelsLike=22.0,
@@ -803,6 +980,17 @@ async def get_weather(location: str = DEFAULT_LOCATION_QUERY) -> Optional[Weathe
     # 存入缓存
     _WEATHER_CACHE[cache_key] = (weather_info, time.time())
     return weather_info
+
+
+async def _fetch_qweather_from_location(location: str) -> Optional[WeatherResponse]:
+    """从已解析的坐标位置获取和风天气数据"""
+    resolved_location, _ = await resolve_location(location)
+    coordinate = parse_coordinate_location(resolved_location)
+    if not coordinate:
+        return None
+
+    latitude, longitude = coordinate
+    return await _fetch_qweather_now(latitude, longitude)
 
 
 def get_season_from_weather(weather: WeatherInfo) -> list[str]:

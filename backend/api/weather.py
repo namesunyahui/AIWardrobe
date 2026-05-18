@@ -14,7 +14,8 @@ from services.weather import (
     DEFAULT_LOCATION_QUERY,
     WeatherInfo,
     WeatherResponse,
-    CityInfo
+    CityInfo,
+    is_chinese_locale,
 )
 
 router = APIRouter()
@@ -29,19 +30,21 @@ async def get_current_weather(
     city: Optional[str] = Query(default=None, description="城市（结构化查询参数）"),
     state: Optional[str] = Query(default=None, description="省/州（结构化查询参数）"),
     country: Optional[str] = Query(default=None, description="国家（结构化查询参数）"),
+    locale: str = Query(default="zh", description="语言标识 (zh/ja/en 等)"),
 ):
     """
     获取当前天气信息
-    
+
     参数:
         location: 城市名（如 上海、Tokyo）或 经纬度坐标（如 31.23,121.47）
-        
+        locale: 语言标识，中文使用和风天气（国内快），其他语言使用 Open-Meteo
+
     返回:
         简化的天气信息
-        
+
     说明:
-        - 天气数据使用 Open-Meteo 免费全球接口
-        - 无需配置天气 API Key
+        - 中文 (zh): 使用和风天气 QWeather（需要配置 QWEATHER_API_KEY）
+        - 其他语言: 使用 Open-Meteo 免费全球接口
     """
     normalized_location, validation_error = normalize_location_request(
         location=location,
@@ -52,11 +55,11 @@ async def get_current_weather(
     if validation_error:
         raise HTTPException(status_code=422, detail=validation_error)
 
-    weather = await get_weather(normalized_location)
-    
+    weather = await get_weather(normalized_location, locale=locale)
+
     if not weather:
         raise HTTPException(status_code=500, detail="获取天气信息失败")
-    
+
     return weather
 
 

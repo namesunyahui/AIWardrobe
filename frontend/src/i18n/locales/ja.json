@@ -4,7 +4,8 @@
     "entry": "登録",
     "wardrobe": "衣装棚",
     "outfit": "コーデ",
-    "recommendation": "提案"
+    "recommendation": "提案",
+    "profile": "プロフィール"
   },
   "entry": {
     "title": "新規登録",
@@ -67,6 +68,7 @@
     "deleteConfirm": "この衣類を削除しますか？",
     "delete": "削除",
     "analyze": "AI分析",
+    "analyzeFailed": "AI分析に失敗しました。しばらくしてから再試行してください。",
     "searchPlaceholder": "名前、説明で検索..."
   },
   "clothesDetail": {
@@ -219,6 +221,7 @@
     "qweatherKey": "QWeather API Key",
     "qweatherConsole": "QWeatherコンソール →",
     "cancel": "キャンセル",
+    "confirm": "確認",
     "saveSettings": "設定を保存",
     "language": "言語",
     "theme": "テーマ",
@@ -244,5 +247,30 @@
       "aquarius": "水瓶座",
       "pisces": "魚座"
     }
+  },
+  "profile": {
+    "title": "プロフィール",
+    "personalInfo": "個人情報",
+    "settings": "設定",
+    "history": "推薦履歴",
+    "favorites": "お気に入り",
+    "addFavorite": "お気に入りに追加",
+    "removeFavorite": "お気に入りから削除",
+    "removeFavoriteConfirm": "お気に入りから削除してもよろしいですか？",
+    "changePassword": "パスワード変更",
+    "version": "バージョン"
+  },
+  "admin": {
+    "users": "ユーザー管理",
+    "stats": "統計"
+  },
+  "auth": {
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "register": "登録",
+    "username": "ユーザー名",
+    "password": "パスワード",
+    "noAccount": "アカウントをお持ちでないですか？",
+    "hasAccount": "すでにアカウントをお持ちですか？"
   }
 }

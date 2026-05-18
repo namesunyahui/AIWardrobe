@@ -1,18 +1,25 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { House, PlusCircle, Search, User, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function TabBar() {
     const navigate = useNavigate()
     const location = useLocation()
     const { t } = useTranslation()
+    const { isAuthenticated } = useAuth()
+
+    // 未登录时显示登录入口
+    if (!isAuthenticated) {
+        return null
+    }
 
     const tabs = [
         { path: '/', icon: House, label: t('tabs.home') },
         { path: '/entry', icon: PlusCircle, label: t('tabs.entry') },
         { path: '/wardrobe', icon: Search, label: t('tabs.wardrobe') },
-        { path: '/outfit', icon: User, label: t('tabs.outfit') },
-        { path: '/recommendation', icon: Sparkles, label: t('tabs.recommendation') }
+        { path: '/recommendation', icon: Sparkles, label: t('tabs.recommendation') },
+        { path: '/profile', icon: User, label: t('tabs.profile') || '我的' }
     ]
 
     return (

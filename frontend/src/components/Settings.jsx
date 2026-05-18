@@ -318,7 +318,7 @@ const Settings = ({ isOpen, onClose, onSave }) => {
     return (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity" onClick={onClose}>
             <div
-                className="bg-[var(--bg-primary)] w-full max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col shadow-xl animate-[slideUp_0.3s_ease-out]"
+                className="bg-[var(--bg-primary)] w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col shadow-xl animate-[slideUp_0.3s_ease-out]"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between p-5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 sm:rounded-t-2xl px-6">

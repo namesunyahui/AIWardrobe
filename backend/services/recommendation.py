@@ -6,6 +6,7 @@ import httpx
 from typing import Any
 
 from domain.clothes import normalize_category_value
+from domain.constants import normalize_api_base
 from services.horoscope import get_daily_horoscope
 from services.weather import WeatherInfo
 from storage.config_store import load_config
@@ -350,12 +351,13 @@ async def get_ai_recommendation(
     weather: WeatherInfo,
     zodiac_sign: str | None = None,
     goal: str | None = None,
+    user_id: int | None = None,
 ) -> dict:
     """
     根据天气和星座运势获取AI穿搭推荐。
     温度约束为硬条件：衣柜单品必须满足温度策略，不满足时给出购买兜底。
     """
-    all_clothes_items = await get_all_clothes()
+    all_clothes_items = await get_all_clothes(user_id=user_id)
     all_clothes = [
         {
             "id": item.id,
@@ -592,9 +594,7 @@ async def get_llm_recommendation(
 """
 
     try:
-        api_base = config.api_base.rstrip("/")
-        if not api_base.endswith("/v1"):
-            api_base = f"{api_base}/v1"
+        api_base = normalize_api_base(config.api_base)
 
         payload = {
             "model": config.model,

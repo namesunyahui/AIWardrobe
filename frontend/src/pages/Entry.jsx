@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import Upload from '../components/Upload'
-import Settings from '../components/Settings'
 import MultiSelect from '../components/MultiSelect'
-import { Save, ArrowLeft, Tag, Palette, Layers, CloudSun, FileText, Shirt, Settings as SettingsIcon, Sparkles } from 'lucide-react'
+import { Save, ArrowLeft, Tag, Palette, Layers, CloudSun, FileText, Shirt, Sparkles } from 'lucide-react'
 
 import { API_BASE, toImageUrl } from '../utils/api'
+import { useAuth } from '../contexts/AuthContext'
 
 // 风格选项，与 Wardrobe 筛选保持一致（存储英文值）
 const STYLE_OPTIONS = ['casual', 'formal', 'sport', 'business', 'vintage', 'minimal', 'daily', 'commute']
@@ -15,9 +15,9 @@ const SEASON_OPTIONS = ['spring', 'summer', 'autumn', 'winter']
 export default function Entry() {
     const { t } = useTranslation()
     const navigate = useNavigate()
+    const { token } = useAuth()
     const [editingItem, setEditingItem] = useState(null)
     const [loading, setLoading] = useState(false)
-    const [showSettings, setShowSettings] = useState(false)
     const [formData, setFormData] = useState({
         item: '',
         category: 'top',
@@ -60,7 +60,8 @@ export default function Entry() {
             const response = await fetch(`${API_BASE}/clothes/${editingItem.id}`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(payload)
             })
@@ -212,12 +213,6 @@ export default function Entry() {
         <div className="min-h-screen bg-[var(--bg-primary)] p-4 flex flex-col pt-safe">
             <header className="flex items-center justify-between mb-6 mt-4">
                 <h1 className="text-3xl font-serif font-bold tracking-tight text-[var(--text-primary)]">{t('entry.title')}</h1>
-                <button
-                    className="p-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 rounded-xl shadow-sm transition-all hover:-translate-y-0.5"
-                    onClick={() => setShowSettings(true)}
-                >
-                    <SettingsIcon className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200" size={20} />
-                </button>
             </header>
 
             <section className="card p-5 mb-5">
@@ -262,13 +257,6 @@ export default function Entry() {
             <div className="flex-1 overflow-y-auto">
                 <Upload onUploadSuccess={handleUploadSuccess} />
             </div>
-
-            <Settings
-                isOpen={showSettings}
-                onClose={() => setShowSettings(false)}
-                onSave={() => {
-                }}
-            />
         </div>
     )
 }

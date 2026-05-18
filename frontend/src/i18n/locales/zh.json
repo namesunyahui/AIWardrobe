@@ -4,7 +4,8 @@
     "entry": "录入",
     "wardrobe": "衣柜",
     "outfit": "穿搭",
-    "recommendation": "推荐"
+    "recommendation": "推荐",
+    "profile": "我的"
   },
   "entry": {
     "title": "录入新衣",
@@ -67,6 +68,7 @@
     "deleteConfirm": "确定要删除这件衣物吗？",
     "delete": "删除",
     "analyze": "AI分析",
+    "analyzeFailed": "AI分析失败，请稍后重试",
     "searchPlaceholder": "搜索名称、描述..."
   },
   "clothesDetail": {
@@ -219,6 +221,7 @@
     "qweatherKey": "和风天气 API Key",
     "qweatherConsole": "和风控制台 →",
     "cancel": "取消",
+    "confirm": "确认",
     "saveSettings": "保存设置",
     "language": "语言",
     "theme": "主题",
@@ -244,5 +247,30 @@
       "aquarius": "水瓶座",
       "pisces": "双鱼座"
     }
+  },
+  "profile": {
+    "title": "个人中心",
+    "personalInfo": "个人信息",
+    "settings": "设置",
+    "history": "推荐历史",
+    "favorites": "我的收藏",
+    "addFavorite": "收藏",
+    "removeFavorite": "取消收藏",
+    "removeFavoriteConfirm": "确定要取消收藏吗？",
+    "changePassword": "修改密码",
+    "version": "版本"
+  },
+  "admin": {
+    "users": "用户管理",
+    "stats": "数据统计"
+  },
+  "auth": {
+    "login": "登录",
+    "logout": "退出登录",
+    "register": "注册",
+    "username": "用户名",
+    "password": "密码",
+    "noAccount": "还没有账号？",
+    "hasAccount": "已有账号？"
   }
 }

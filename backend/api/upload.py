@@ -1,33 +1,29 @@
 """
 图片上传 API
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from pathlib import Path
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 import uuid
 
-from services.segment import remove_background
-from services.removebg import remove_background_api
 from services.openai_compatible import analyze_clothes_openai
 from services.image_processor import compress_image
+from services.minio import upload_to_minio, get_minio_service
 from storage.config_store import load_config
 from domain.clothes import ClothesSemantics, ClothesCreate, ClothesItem, normalize_category_value
 from storage.db import add_clothes, get_clothes_by_id, update_clothes, get_clothes_image_filename
+from services.auth import CurrentUser, get_current_user
+from domain.constants import CLOTHES_CATEGORIES, IMAGE_MAX_SIZE, IMAGE_QUALITY, IMAGE_ALLOWED_TYPES, IMAGE_MAX_FILE_SIZE
 
 router = APIRouter()
 
-# 上传目录
-UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
-
-ALLOWED_CATEGORIES = {"top", "bottom", "shoes", "accessory", "uncategorized"}
-
-# 图片压缩配置
-IMAGE_MAX_SIZE = (1024, 1024)  # 最大边长
-IMAGE_QUALITY = 85  # 质量
+# 图片压缩配置（从 constants 导入）
+# IMAGE_MAX_SIZE, IMAGE_QUALITY, IMAGE_ALLOWED_TYPES, IMAGE_MAX_FILE_SIZE
 
 
 @router.post("/upload", response_model=ClothesItem)
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: CurrentUser = Depends(get_current_user)
+):
     """
     上传衣物图片（直接保存到未分类，不进行AI分析）
 
@@ -52,12 +48,12 @@ async def upload_image(file: UploadFile = File(...)):
             output_format="PNG"
         )
 
-        # 生成文件名并保存
-        filename = f"{uuid.uuid4()}.png"
-        filepath = UPLOAD_DIR / filename
-
-        with open(filepath, "wb") as f:
-            f.write(compressed_bytes)
+        # 上传到 MinIO
+        image_key = await upload_to_minio(
+            user_id=current_user.user_id,
+            image_data=compressed_bytes,
+            category="clothes"
+        )
 
         # 直接保存到未分类，不进行AI分析
         clothes_data = ClothesCreate(
@@ -68,11 +64,11 @@ async def upload_image(file: UploadFile = File(...)):
             usage_semantics=[],
             color_semantics="unknown",
             description="请手动分类或使用AI分析",
-            image_filename=filename
+            image_filename=image_key
         )
 
-        clothes_id = await add_clothes(clothes_data)
-        clothes = await get_clothes_by_id(clothes_id)
+        clothes_id = await add_clothes(clothes_data, user_id=current_user.user_id)
+        clothes = await get_clothes_by_id(clothes_id, user_id=current_user.user_id)
 
         return clothes
 
@@ -81,33 +77,38 @@ async def upload_image(file: UploadFile = File(...)):
 
 
 @router.post("/upload/analyze/{clothes_id}", response_model=ClothesItem)
-async def analyze_clothes(clothes_id: int):
+async def analyze_clothes(
+    clothes_id: int,
+    current_user: CurrentUser = Depends(get_current_user)
+):
     """
     AI分析衣物（需要先上传图片到未分类）
     """
     try:
-        clothes = await get_clothes_by_id(clothes_id)
+        clothes = await get_clothes_by_id(clothes_id, user_id=current_user.user_id)
         if not clothes:
             raise HTTPException(status_code=404, detail="衣物不存在")
 
-        # 直接从数据库获取图片文件名
-        image_filename = await get_clothes_image_filename(clothes_id)
-        if not image_filename:
-            raise HTTPException(status_code=404, detail="图片文件名不存在")
+        # 直接从数据库获取图片的 image_key (MinIO object key)
+        image_key = await get_clothes_image_filename(clothes_id, user_id=current_user.user_id)
+        if not image_key:
+            raise HTTPException(status_code=404, detail="图片不存在")
 
-        # 读取图片
-        image_path = UPLOAD_DIR / image_filename
-        if not image_path.exists():
-            raise HTTPException(status_code=404, detail="图片文件不存在")
-
-        with open(image_path, "rb") as f:
-            image_bytes = f.read()
+        # 从 MinIO 获取图片数据
+        minio_service = get_minio_service()
+        try:
+            response = minio_service.client.get_object(minio_service.bucket, image_key)
+            image_bytes = response.read()
+            response.close()
+            response.release_conn()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"读取图片失败: {str(e)}")
 
         # AI 分析
         semantics: ClothesSemantics = await analyze_clothes_openai(image_bytes)
 
         normalized_category = normalize_category_value(semantics.category)
-        if normalized_category not in ALLOWED_CATEGORIES:
+        if normalized_category not in CLOTHES_CATEGORIES:
             normalized_category = "accessory"
 
         # 更新数据库
@@ -119,13 +120,12 @@ async def analyze_clothes(clothes_id: int):
             usage_semantics=semantics.usage_semantics,
             color_semantics=semantics.color_semantics,
             description=semantics.description,
-            image_filename=image_filename
+            image_filename=image_key
         )
-        await update_clothes(clothes_id, update_data)
+        await update_clothes(clothes_id, update_data, user_id=current_user.user_id)
 
-        # 移动到对应分类（从 uncategorized 移除）
         # 返回更新后的数据
-        clothes = await get_clothes_by_id(clothes_id)
+        clothes = await get_clothes_by_id(clothes_id, user_id=current_user.user_id)
 
         return clothes
 

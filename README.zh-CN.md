@@ -28,7 +28,7 @@
 | 特性 | 描述 |
 | :--- | :--- |
 | **智能上传** | 上传衣服照片后，使用 `rembg` 自动去背景，并通过视觉模型识别类别、颜色和风格 |
-| **天气穿搭** | 集成 Open-Meteo 免费全球天气接口，根据实时天气生成更合适的穿搭建议 |
+| **天气穿搭** | 根据语言自动选择：中文使用和风天气 QWeather（国内快速）、日语/英语使用 Open-Meteo，根据实时天气生成穿搭建议 |
 | **虚拟衣柜** | 以结构化方式浏览、搜索和管理所有衣物 |
 | **AI 推荐** | 支持 Gemini 和 OpenAI 风格接口，用于生成个性化穿搭方案 |
 | **响应式界面** | 基于 Tailwind CSS，适配桌面、平板和手机 |
@@ -56,7 +56,7 @@
 
 <table>
 <tr><td><b>前端</b></td><td>React + Vite + Tailwind CSS</td></tr>
-<tr><td><b>后端</b></td><td>FastAPI + SQLite</td></tr>
+<tr><td><b>后端</b></td><td>FastAPI + MySQL/SQLite</td></tr>
 <tr><td><b>AI</b></td><td>Google Gemini / OpenAI 兼容接口 + rembg</td></tr>
 <tr><td><b>部署</b></td><td>Docker / Docker Compose（amd64 & arm64）</td></tr>
 </table>
@@ -113,7 +113,15 @@ AIWardrobe/
 │   │   ├── db.py                 # SQLite 数据库
 │   │   ├── config_store.py       # 配置持久化
 │   │   └── models.py             # 数据表模型
-│   ├── uploads/                  # 上传的图片存储
+│   ├── services/                 # 业务逻辑服务层
+│   │   ├── minio.py              # MinIO 对象存储
+│   │   ├── gemini.py             # Google Gemini AI
+│   │   ├── recommendation.py     # 推荐算法
+│   │   ├── removebg.py           # 背景去除 (rembg)
+│   │   ├── segment.py            # 图像分割
+│   │   ├── weather.py            # 天气服务
+│   │   ├── horoscope.py          # 星座服务
+│   │   └── image_processor.py   # 图片压缩处理
 │   ├── main.py                   # FastAPI 主入口
 │   └── requirements.txt          # Python 依赖
 │
@@ -205,10 +213,10 @@ cd frontend && npm run dev
 
 ```bash
 cp backend/.env.example backend/.env
+# 编辑 .env，填入你的 API Key 和 MinIO 配置
 docker build -t aiwardrobe:local .
 docker run -d --name ai_wardrobe -p 8000:8000 \
   --env-file backend/.env \
-  -v $(pwd)/backend/uploads:/app/backend/uploads \
   -v $(pwd)/backend/data:/app/backend/data \
   aiwardrobe:local
 ```
@@ -219,7 +227,6 @@ docker run -d --name ai_wardrobe -p 8000:8000 \
 docker pull ghcr.io/namesunyahui/aiwardrobe:latest
 docker run -d --name ai_wardrobe -p 8000:8000 \
   --env-file backend/.env \
-  -v $(pwd)/backend/uploads:/app/backend/uploads \
   -v $(pwd)/backend/data:/app/backend/data \
   ghcr.io/namesunyahui/aiwardrobe:latest
 ```
@@ -228,13 +235,13 @@ docker run -d --name ai_wardrobe -p 8000:8000 \
 
 ```bash
 git clone https://github.com/namesunyahui/AIWardrobe.git && cd AIWardrobe
-cp backend/.env.example backend/.env  # 编辑 .env，填入你的 API Key
+cp backend/.env.example backend/.env  # 编辑 .env，填入你的 API Key 和 MinIO 配置
 docker compose up --build -d
 ```
 
 访问 http://localhost:8000 &nbsp;|&nbsp; API 文档 http://localhost:8000/docs
 
-数据会持久化保存在 `backend/data` 和 `backend/uploads` 目录中。
+数据会持久化保存在 `backend/data` 目录中，图片存储在 MinIO 对象存储服务中。
 
 ## ⭐ Star History
 

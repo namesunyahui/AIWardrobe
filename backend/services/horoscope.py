@@ -4,6 +4,7 @@
 2) 再按需执行 LLM 推理
 """
 import os
+import hashlib
 from datetime import datetime
 from typing import Optional
 
@@ -15,6 +16,7 @@ from storage.db import (
     upsert_horoscope_source,
     update_horoscope_inference,
 )
+from domain.constants import normalize_api_base
 from services.weather import WeatherInfo
 
 AZTRO_API_URL = os.getenv("AZTRO_API_URL", "https://aztro.sameerkumar.website").rstrip("/")
@@ -143,22 +145,72 @@ def _to_lucky_number(raw_value: object, default: int = 7) -> int:
     return min(max(lucky_number, 1), 99)
 
 
-def fallback_horoscope_source(sign_key: str, weather: WeatherInfo, today: str) -> dict:
-    """aztro 不可用时的兜底源数据。"""
-    day_seed = datetime.now().toordinal()
-    sign_index = list(ZODIAC_NAMES.keys()).index(sign_key)
-    lucky_number = ((day_seed + sign_index * 7) % 89) + 11
-    trait = ZODIAC_TRAITS.get(sign_key, "节奏感")
+def generate_dynamic_horoscope(sign_key: str, weather: WeatherInfo, today: str) -> dict:
+    """基于日期和星座生成动态运势（替代不可用的 aztro API）"""
+
+    # 使用日期+星座作为种子，生成伪随机但稳定的运势
+    date_hash = int(hashlib.md5(f"{today}_{sign_key}".encode()).hexdigest()[:8], 16)
+
+    # 心情列表（轮换）
+    moods = ["心情愉悦", "略显疲惫", "充满活力", "平静如水", "思绪万千", "干劲十足",
+             "有些焦虑", "轻松自在", "精神焕发", "略感压力", "自信满满", "有些迷茫"]
+    mood = moods[date_hash % len(moods)]
+
+    # 幸运颜色（每个星座有多个候选，每天不同）
+    sign_colors = {
+        "aries": ["珊瑚红", "砖红色", "橘红色", "深红色", "玫瑰红"],
+        "taurus": ["苔藓绿", "橄榄绿", "军绿色", "深绿色", "翠绿色"],
+        "gemini": ["柠檬黄", "金黄色", "明黄色", "浅黄色", "奶黄色"],
+        "cancer": ["珍珠白", "奶白色", "象牙白", "月光白", "银白色"],
+        "leo": ["琥珀金", "金棕色", "灿烂黄", "皇室橙", "日光金"],
+        "virgo": ["雾霾蓝", "天蓝色", "钴蓝色", "灰蓝色", "海浪蓝"],
+        "libra": ["樱花粉", "淡粉色", "玫瑰粉", "桃花粉", "珊瑚粉"],
+        "scorpio": ["深酒红", "酒红色", "栗色", "枣红色", "宝石红"],
+        "sagittarius": ["靛青蓝", "深蓝色", "宝蓝色", "午夜蓝", "海军蓝"],
+        "capricorn": ["岩石灰", "深灰色", "炭灰色", "铁灰色", "石墨灰"],
+        "aquarius": ["电光蓝", "荧光蓝", "天青色", "湖蓝色", "冰蓝色"],
+        "pisces": ["海盐蓝", "浅蓝色", "薄荷蓝", "雾蓝色", "淡水蓝"]
+    }
+    colors = sign_colors.get(sign_key, ["浅蓝色"])
+    lucky_color = colors[date_hash % len(colors)]
+
+    # 幸运数字（基于日期和星座）
+    lucky_number = ((date_hash % 88) + 1)
+
+    # 描述生成（使用不同模板轮换）
+    descriptions = [
+        "今天适合放慢脚步，给自己一些独处的时间来思考下一步的方向。",
+        "在工作或学习中可能会遇到一些小挑战，但你有足够的能力去克服它们。",
+        "今天的人际关系运势不错，适合与朋友或家人多交流沟通。",
+        "财运方面今天可能会有一些意外的小收获，记得抓住机会。",
+        "今天适合尝试一些新事物，可能会给你带来意想不到的惊喜。",
+        "在感情方面今天表现平稳，单身者可能会有新的邂逅。",
+        "今天的状态非常适合处理之前拖延的事项，效率会比较高。",
+        "需要注意健康管理，适当运动和休息会让你更有活力。",
+        "今天在创意方面有不错的灵感，适合做一些 творческой工作。",
+        "和身边的人相处时保持耐心倾听，这会让你收获更多友谊。",
+    ]
+    description = descriptions[date_hash % len(descriptions)]
+
+    # 幸运时段
+    lucky_times = ["上午", "中午", "下午", "傍晚", "晚上", "深夜", "凌晨", "早晨"]
+    lucky_time = lucky_times[(date_hash // 10) % len(lucky_times)]
+
+    # 契合星座（基于十二星座顺序）
+    all_signs = list(ZODIAC_NAMES.keys())
+    sign_idx = all_signs.index(sign_key) if sign_key in all_signs else 0
+    compatibility_sign = all_signs[(sign_idx + 3) % 12]  # 相隔3个星座
+    compatibility = ZODIAC_NAMES.get(compatibility_sign, "未知星座")
 
     return {
         "current_date": today,
         "date_range": "",
-        "description": f"今天你的关键词是{trait}，把精力集中在一件最重要的事上，会有更稳定的收获。",
-        "mood": "稳中有进",
-        "color": DEFAULT_COLORS.get(sign_key, "浅蓝色"),
+        "description": description,
+        "mood": mood,
+        "color": lucky_color,
         "lucky_number": lucky_number,
-        "lucky_time": "",
-        "compatibility": "",
+        "lucky_time": lucky_time,
+        "compatibility": compatibility,
         "weather_tip": build_weather_tip(weather),
     }
 
@@ -225,9 +277,7 @@ async def generate_llm_reasoning(
     if not config.api_key:
         return None, "skipped", "未配置 LLM API Key"
 
-    api_base = config.api_base.rstrip("/")
-    if not api_base.endswith("/v1"):
-        api_base = f"{api_base}/v1"
+    api_base = normalize_api_base(config.api_base)
 
     prompt = f"""
 你是一名理性、可执行导向的运势分析助手。请基于以下星座原始数据给出穿搭场景推理。
@@ -379,8 +429,8 @@ async def get_daily_horoscope(
         source_payload = await fetch_aztro_horoscope(sign_key=sign_key, today=today, weather=weather)
         source_provider = "aztro"
         if not source_payload:
-            source_payload = fallback_horoscope_source(sign_key=sign_key, weather=weather, today=today)
-            source_provider = "fallback"
+            source_payload = generate_dynamic_horoscope(sign_key=sign_key, weather=weather, today=today)
+            source_provider = "dynamic"
 
         record_id = await upsert_horoscope_source(
             record_date=today,

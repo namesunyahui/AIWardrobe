@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw, Save, Tag, Shirt, Palette, Layers, CloudSun, File
 
 import { API_BASE, toImageUrl } from '../utils/api'
 import MultiSelect from '../components/MultiSelect'
+import { useAuth } from '../contexts/AuthContext'
 
 const STYLE_OPTIONS = ['casual', 'formal', 'sport', 'business', 'vintage', 'minimal', 'daily', 'commute']
 const SEASON_OPTIONS = ['spring', 'summer', 'autumn', 'winter']
@@ -13,6 +14,7 @@ export default function ClothesDetail() {
     const { t } = useTranslation()
     const navigate = useNavigate()
     const { id } = useParams()
+    const { token } = useAuth()
     const [item, setItem] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -35,7 +37,9 @@ export default function ClothesDetail() {
         setLoading(true)
         setError('')
         try {
-            const response = await fetch(`${API_BASE}/clothes/${id}`)
+            const response = await fetch(`${API_BASE}/clothes/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
             if (!response.ok) {
                 throw new Error(response.status === 404 ? 'NOT_FOUND' : 'FETCH_FAILED')
             }
@@ -76,7 +80,10 @@ export default function ClothesDetail() {
             }
             const response = await fetch(`${API_BASE}/clothes/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(payload)
             })
             if (response.ok) {
@@ -175,11 +182,11 @@ export default function ClothesDetail() {
                 </header>
 
                 <div className="flex-1 overflow-y-auto pb-24 px-4 space-y-6">
-                    <div className="w-full aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-700 p-6 flex flex-col items-center justify-center mt-4">
+                    <div className="w-full aspect-square bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-700 p-2 flex items-center justify-center mt-4">
                         <img
                             src={toImageUrl(item.image_url)}
                             alt="Preview"
-                            className="w-full h-full object-contain drop-shadow-md"
+                            className="w-full h-full object-contain"
                         />
                     </div>
 
@@ -280,7 +287,7 @@ export default function ClothesDetail() {
     }
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] pb-8 animate-fade-in">
+        <div className="bg-[var(--bg-primary)] pb-8 animate-fade-in">
             <header className="glass-header px-4 py-4 flex items-center justify-between sticky top-0">
                 <div className="flex items-center gap-2">
                     <button className="btn-icon" onClick={() => navigate('/wardrobe')}>
@@ -299,11 +306,11 @@ export default function ClothesDetail() {
 
             <div className="p-4 space-y-4">
                 <article className="card overflow-hidden">
-                    <div className="aspect-square bg-zinc-100 dark:bg-zinc-800 p-6 flex items-center justify-center">
+                    <div className="aspect-square bg-zinc-100 dark:bg-zinc-800 p-2 flex items-center justify-center">
                         <img
                             src={toImageUrl(item.image_url)}
                             alt={item.item}
-                            className="w-full h-full object-contain drop-shadow-md"
+                            className="w-full h-full object-contain"
                         />
                     </div>
                     <div className="p-4 border-t border-zinc-100 dark:border-zinc-800">

@@ -28,7 +28,7 @@
 | 機能 | 説明 |
 | :--- | :--- |
 | **スマートアップロード** | 衣類の写真をアップロードすると `rembg` で背景を自動除去し、AI ビジョンモデルでカテゴリ・色・スタイルを分析 |
-| **天気連動スタイリング** | Open-Meteo の無料グローバル天気 API を利用し、リアルタイム天気に基づいたコーディネートを提案 |
+| **天気連動スタイリング** | 言語に応じて自動選択：中国語は和風天気（高速）、日本語/英語は Open-Meteo を使用し、リアルタイム天気に基づいたコーディネートを提案 |
 | **デジタルワードローブ** | 構造化されたビューで衣類を閲覧・検索・管理 |
 | **AI レコメンデーション** | Gemini や OpenAI 互換プロバイダーによるパーソナライズされたコーディネート生成 |
 | **レスポンシブ UI** | Tailwind CSS によるモダンなインターフェースで、デスクトップ・タブレット・モバイルに対応 |
@@ -126,10 +126,10 @@ cd frontend && npm run dev
 
 ```bash
 cp backend/.env.example backend/.env
+# .env を編集し、API キーと MinIO 設定を入力
 docker build -t aiwardrobe:local .
 docker run -d --name ai_wardrobe -p 8000:8000 \
   --env-file backend/.env \
-  -v $(pwd)/backend/uploads:/app/backend/uploads \
   -v $(pwd)/backend/data:/app/backend/data \
   aiwardrobe:local
 ```
@@ -137,25 +137,24 @@ docker run -d --name ai_wardrobe -p 8000:8000 \
 ### ビルド済みイメージを使用
 
 ```bash
-docker pull ghcr.io/leoz9/aiwardrobe:latest
+docker pull ghcr.io/namesunyahui/aiwardrobe:latest
 docker run -d --name ai_wardrobe -p 8000:8000 \
   --env-file backend/.env \
-  -v $(pwd)/backend/uploads:/app/backend/uploads \
   -v $(pwd)/backend/data:/app/backend/data \
-  ghcr.io/leoz9/aiwardrobe:latest
+  ghcr.io/namesunyahui/aiwardrobe:latest
 ```
 
 ### Docker Compose
 
 ```bash
-git clone https://github.com/leoz9/AIWardrobe.git && cd AIWardrobe
-cp backend/.env.example backend/.env  # .env を編集し、API キーを入力
+git clone https://github.com/namesunyahui/AIWardrobe.git && cd AIWardrobe
+cp backend/.env.example backend/.env  # .env を編集し、API キーと MinIO 設定を入力
 docker compose up --build -d
 ```
 
 http://localhost:8000 でアクセス &nbsp;|&nbsp; API ドキュメント http://localhost:8000/docs
 
-データは `backend/data` と `backend/uploads` に永続化されます。
+データは `backend/data` ディレクトリに永続化され、画像は MinIO オブジェクトストレージに格納されます。
 
 ## ⭐ Star History
 
