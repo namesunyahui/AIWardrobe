@@ -13,48 +13,48 @@ async def get_stats(
     current_user: CurrentUser = Depends(require_permission("stats:read"))
 ):
     """获取系统统计数据"""
-    from storage.db import DB_PATH
-    import aiosqlite
-    from datetime import datetime, timedelta
+    from storage.database import get_session_maker
+    from sqlalchemy import text
+    from datetime import datetime
 
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    Session = get_session_maker()
+    async with Session() as db:
 
         # 用户统计
-        cursor = await db.execute("SELECT COUNT(*) as count FROM users WHERE is_deleted = 0")
-        total_users = (await cursor.fetchone())["count"]
+        cursor = await db.execute(text("SELECT COUNT(*) as count FROM users WHERE is_deleted = 0"))
+        total_users = cursor.scalar()
 
-        cursor = await db.execute("SELECT COUNT(*) as count FROM users WHERE is_deleted = 0 AND is_active = 1")
-        active_users = (await cursor.fetchone())["count"]
+        cursor = await db.execute(text("SELECT COUNT(*) as count FROM users WHERE is_deleted = 0 AND is_active = 1"))
+        active_users = cursor.scalar()
 
-        cursor = await db.execute("SELECT COUNT(*) as count FROM users WHERE is_deleted = 0 AND is_active = 0")
-        inactive_users = (await cursor.fetchone())["count"]
+        cursor = await db.execute(text("SELECT COUNT(*) as count FROM users WHERE is_deleted = 0 AND is_active = 0"))
+        inactive_users = cursor.scalar()
 
         # 今日新用户
         today = datetime.now().strftime("%Y-%m-%d")
         cursor = await db.execute(
-            "SELECT COUNT(*) as count FROM users WHERE is_deleted = 0 AND date(created_at) = ?",
-            (today,)
+            text("SELECT COUNT(*) as count FROM users WHERE is_deleted = 0 AND date(created_at) = :today"),
+            {"today": today}
         )
-        new_today = (await cursor.fetchone())["count"]
+        new_today = cursor.scalar()
 
         # 衣物统计
-        cursor = await db.execute("SELECT COUNT(*) as count FROM clothes")
-        total_clothes = (await cursor.fetchone())["count"]
+        cursor = await db.execute(text("SELECT COUNT(*) as count FROM clothes"))
+        total_clothes = cursor.scalar()
 
         # 按分类统计
         cursor = await db.execute(
-            "SELECT category, COUNT(*) as count FROM clothes GROUP BY category"
+            text("SELECT category, COUNT(*) as count FROM clothes GROUP BY category")
         )
-        category_rows = await cursor.fetchall()
-        by_category = {row["category"]: row["count"] for row in category_rows}
+        category_rows = cursor.fetchall()
+        by_category = {row[0]: row[1] for row in category_rows}
 
         # 推荐统计
-        cursor = await db.execute("SELECT COUNT(*) as count FROM recommendation_records WHERE date(created_at) = ?", (today,))
-        recommendations_today = (await cursor.fetchone())["count"]
+        cursor = await db.execute(text("SELECT COUNT(*) as count FROM recommendation_records WHERE date(created_at) = :today"), {"today": today})
+        recommendations_today = cursor.scalar()
 
-        cursor = await db.execute("SELECT COUNT(*) as count FROM recommendation_records")
-        recommendations_total = (await cursor.fetchone())["count"]
+        cursor = await db.execute(text("SELECT COUNT(*) as count FROM recommendation_records"))
+        recommendations_total = cursor.scalar()
 
     return {
         "users": {
@@ -79,11 +79,12 @@ async def get_user_stats(
     current_user: CurrentUser = Depends(require_permission("stats:read"))
 ):
     """获取用户统计数据"""
-    from storage.db import DB_PATH
-    import aiosqlite
+    from storage.database import get_session_maker
+    from sqlalchemy import text
 
-    async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute("""
+    Session = get_session_maker()
+    async with Session() as db:
+        cursor = await db.execute(text("""
             SELECT
                 date(created_at) as date,
                 COUNT(*) as count
@@ -92,11 +93,11 @@ async def get_user_stats(
                 AND created_at >= date('now', '-30 days')
             GROUP BY date(created_at)
             ORDER BY date
-        """)
-        rows = await cursor.fetchall()
+        """))
+        rows = cursor.fetchall()
 
     return {
-        "items": [{"date": row["date"], "count": row["count"]} for row in rows]
+        "items": [{"date": row[0], "count": row[1]} for row in rows]
     }
 
 
@@ -105,12 +106,13 @@ async def get_usage_stats(
     current_user: CurrentUser = Depends(require_permission("stats:read"))
 ):
     """获取使用统计数据"""
-    from storage.db import DB_PATH
-    import aiosqlite
+    from storage.database import get_session_maker
+    from sqlalchemy import text
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    Session = get_session_maker()
+    async with Session() as db:
         # 衣物上传趋势（最近30天）
-        cursor = await db.execute("""
+        cursor = await db.execute(text("""
             SELECT
                 date(created_at) as date,
                 COUNT(*) as count
@@ -118,11 +120,11 @@ async def get_usage_stats(
             WHERE created_at >= date('now', '-30 days')
             GROUP BY date(created_at)
             ORDER BY date
-        """)
-        clothes_rows = await cursor.fetchall()
+        """))
+        clothes_rows = cursor.fetchall()
 
         # 推荐使用趋势
-        cursor = await db.execute("""
+        cursor = await db.execute(text("""
             SELECT
                 date(created_at) as date,
                 COUNT(*) as count
@@ -130,10 +132,10 @@ async def get_usage_stats(
             WHERE created_at >= date('now', '-30 days')
             GROUP BY date(created_at)
             ORDER BY date
-        """)
-        recommendation_rows = await cursor.fetchall()
+        """))
+        recommendation_rows = cursor.fetchall()
 
     return {
-        "clothes_trend": [{"date": row["date"], "count": row["count"]} for row in clothes_rows],
-        "recommendations_trend": [{"date": row["date"], "count": row["count"]} for row in recommendation_rows]
+        "clothes_trend": [{"date": row[0], "count": row[1]} for row in clothes_rows],
+        "recommendations_trend": [{"date": row[0], "count": row[1]} for row in recommendation_rows]
     }

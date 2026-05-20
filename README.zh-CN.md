@@ -56,7 +56,7 @@
 
 <table>
 <tr><td><b>前端</b></td><td>React + Vite + Tailwind CSS</td></tr>
-<tr><td><b>后端</b></td><td>FastAPI + MySQL/SQLite</td></tr>
+<tr><td><b>后端</b></td><td>FastAPI + MySQL</td></tr>
 <tr><td><b>AI</b></td><td>Google Gemini / OpenAI 兼容接口 + rembg</td></tr>
 <tr><td><b>部署</b></td><td>Docker / Docker Compose（amd64 & arm64）</td></tr>
 </table>
@@ -110,9 +110,9 @@ AIWardrobe/
 │   │   ├── horoscope.py          # 星座服务
 │   │   └── image_processor.py   # 图片压缩处理
 │   ├── storage/                  # 存储层
-│   │   ├── db.py                 # SQLite 数据库
+│   │   ├── db.py                 # MySQL 数据库操作
 │   │   ├── config_store.py       # 配置持久化
-│   │   └── models.py             # 数据表模型
+│   │   └── models_mysql.py       # 数据表模型
 │   ├── services/                 # 业务逻辑服务层
 │   │   ├── minio.py              # MinIO 对象存储
 │   │   ├── gemini.py             # Google Gemini AI
@@ -209,39 +209,79 @@ cd frontend && npm run dev
 
 ## 🐳 Docker 部署
 
+### 配置文件说明
+
+所有配置通过 `backend/.env` 文件管理，构建镜像时会自动打包进镜像：
+- MySQL 数据库配置
+- MinIO 对象存储配置
+- LLM API 配置（模型、API Key）
+- 和风天气 API 配置
+- 管理员初始账户
+
+### 前置要求
+
+1. **MySQL 数据库**：需要先在 MySQL 服务器上创建空数据库
+```sql
+CREATE DATABASE aiwardrobe CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+2. **MinIO 对象存储**：图片存储服务（可选，如未配置则无法上传图片）
+
+### 构建镜像
+
+```bash
+# 构建镜像
+docker build -t aiwardrobe:latest .
+
+# 打包为 tar 文件（用于传输到服务器）
+docker save -o aiwardrobe.tar aiwardrobe:latest
+```
+
+### 部署到服务器
+
+```bash
+# 方式一：直接推送镜像到仓库（需要先 docker login）
+docker tag aiwardrobe:latest ghcr.io/namesunyahui/aiwardrobe:latest
+docker push ghcr.io/namesunyahui/aiwardrobe:latest
+
+# 方式二：传输 tar 文件部署
+# 1. 将 aiwardrobe.tar 上传到服务器
+# 2. 在服务器上加载镜像
+docker load -i aiwardrobe.tar
+
+# 3. 运行容器（配置已打包在镜像中）
+docker run -d --name aiwardrobe -p 8000:8000 aiwardrobe:latest
+```
+
 ### 快速开始（本地构建）
 
 ```bash
 cp backend/.env.example backend/.env
-# 编辑 .env，填入你的 API Key 和 MinIO 配置
+# 编辑 .env，填入你的 API Key 和数据库配置
 docker build -t aiwardrobe:local .
-docker run -d --name ai_wardrobe -p 8000:8000 \
-  --env-file backend/.env \
-  -v $(pwd)/backend/data:/app/backend/data \
-  aiwardrobe:local
+docker run -d --name ai_wardrobe -p 8000:8000 aiwardrobe:local
 ```
+
+> 注意：`.env` 文件已包含所有配置（数据库、MinIO、LLM API 等），无需额外传环境变量。
 
 ### 使用预构建镜像
 
 ```bash
 docker pull ghcr.io/namesunyahui/aiwardrobe:latest
-docker run -d --name ai_wardrobe -p 8000:8000 \
-  --env-file backend/.env \
-  -v $(pwd)/backend/data:/app/backend/data \
-  ghcr.io/namesunyahui/aiwardrobe:latest
+docker run -d --name ai_wardrobe -p 8000:8000 ghcr.io/namesunyahui/aiwardrobe:latest
 ```
 
 ### Docker Compose
 
 ```bash
 git clone https://github.com/namesunyahui/AIWardrobe.git && cd AIWardrobe
-cp backend/.env.example backend/.env  # 编辑 .env，填入你的 API Key 和 MinIO 配置
+cp backend/.env.example backend/.env  # 编辑 .env，填入配置
 docker compose up --build -d
 ```
 
 访问 http://localhost:8000 &nbsp;|&nbsp; API 文档 http://localhost:8000/docs
 
-数据会持久化保存在 `backend/data` 目录中，图片存储在 MinIO 对象存储服务中。
+> 注意：配置文件已打包到镜像中，无需额外挂载卷。图片存储在 MinIO 对象存储服务中。
 
 ## ⭐ Star History
 

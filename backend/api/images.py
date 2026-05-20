@@ -8,6 +8,23 @@ from services.auth import CurrentUser, get_current_user
 router = APIRouter()
 
 
+@router.get("/proxy/{image_key:path}")
+async def get_image_proxy(image_key: str):
+    """
+    公开图片代理 - 解决跨域问题，返回302重定向
+    """
+    from services.minio import MINIO_ENDPOINT, MINIO_BUCKET
+    from fastapi.responses import RedirectResponse
+
+    # 验证 image_key 格式
+    if ".." in image_key or image_key.startswith("/"):
+        raise HTTPException(status_code=400, detail="无效的图片路径")
+
+    # 直接重定向到 MinIO URL
+    minio_url = f"http://{MINIO_ENDPOINT}/{MINIO_BUCKET}/{image_key}"
+    return RedirectResponse(url=minio_url, status_code=302)
+
+
 @router.get("/{image_key}")
 async def get_image(image_key: str, current_user: CurrentUser = Depends(get_current_user)):
     """

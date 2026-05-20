@@ -1,11 +1,17 @@
 """
 配置存储 - 使用 JSON 文件持久化配置
 """
+import os
 import json
 from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
 from domain.config import LLMConfig
 from services.weather import validate_location_input, DEFAULT_LOCATION_QUERY
+
+# 加载 .env 文件
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
 
 CONFIG_FILE = Path(__file__).parent / "llm_config.json"
 _CONFIG_CACHE: Optional[LLMConfig] = None
@@ -13,9 +19,42 @@ _CONFIG_MTIME: Optional[float] = None
 
 
 def load_config() -> LLMConfig:
-    """加载 LLM 配置"""
+    """加载 LLM 配置，优先从环境变量读取 API 配置，从 JSON 读取其他配置"""
     global _CONFIG_CACHE, _CONFIG_MTIME
 
+    # 从环境变量读取 API 配置
+    api_base = os.getenv("LLM_API_BASE")
+    api_key = os.getenv("LLM_API_KEY")
+    model = os.getenv("LLM_MODEL")
+    removebg_api_key = os.getenv("REMOVE_BG_API_KEY")
+    bg_removal_method = os.getenv("BG_REMOVAL_METHOD", "removebg")
+    weather_location = os.getenv("WEATHER_LOCATION", "上海, 上海市, 中国")
+    zodiac_sign = os.getenv("ZODIAC_SIGN")
+
+    # 始终从 JSON 文件读取其他配置（如 zodiac_sign）
+    json_config = {}
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                json_config = json.load(f)
+        except Exception:
+            pass
+
+    # 环境变量优先用于 API 配置，但使用 JSON 中的其他值作为默认值
+    if api_base and api_key:
+        _CONFIG_CACHE = LLMConfig(
+            api_base=api_base,
+            api_key=api_key,
+            model=model or json_config.get("model", "gemini-flash-latest"),
+            removebg_api_key=removebg_api_key or json_config.get("removebg_api_key", ""),
+            bg_removal_method=bg_removal_method or json_config.get("bg_removal_method", "removebg"),
+            weather_location=weather_location if weather_location != "上海, 上海市, 中国" else json_config.get("weather_location", "上海, 上海市, 中国"),
+            zodiac_sign=zodiac_sign if zodiac_sign else json_config.get("zodiac_sign", "")
+        )
+        _CONFIG_MTIME = None
+        return _CONFIG_CACHE
+
+    # 回退到 JSON 文件
     if not CONFIG_FILE.exists():
         _CONFIG_CACHE = LLMConfig()
         _CONFIG_MTIME = None

@@ -2,8 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { API_BASE } from '../utils/api'
 import { useAuth } from './AuthContext'
 const DEFAULT_LOCATION = '上海, 上海市, 中国'
-const CACHE_KEY = 'aiwardrobe_recommendation_cache'
+const CACHE_PREFIX = 'aiwardrobe_recommendation_cache'
 const CACHE_EXPIRY_HOURS = 24
+
+// 获取用户特定的缓存 key
+function getUserCacheKey(userId) {
+    return userId ? `${CACHE_PREFIX}_user_${userId}` : CACHE_PREFIX
+}
 
 const RecommendationContext = createContext(null)
 
@@ -31,9 +36,10 @@ const INITIAL_STATE = {
   }
 }
 
-function getCache() {
+function getCache(userId) {
+  const cacheKey = getUserCacheKey(userId)
   try {
-    const cached = localStorage.getItem(CACHE_KEY)
+    const cached = localStorage.getItem(cacheKey)
     if (!cached) {
       console.log('[RecommendationContext] No cache found in localStorage')
       return null
@@ -46,7 +52,7 @@ function getCache() {
     console.log('[RecommendationContext] Cache found, age:', hoursSinceCached.toFixed(1), 'hours')
 
     if (hoursSinceCached > CACHE_EXPIRY_HOURS) {
-      localStorage.removeItem(CACHE_KEY)
+      localStorage.removeItem(cacheKey)
       console.log('[RecommendationContext] Cache expired, removed')
       return null
     }
@@ -59,32 +65,35 @@ function getCache() {
   }
 }
 
-function setCache(data) {
+function setCache(data, userId) {
+  const cacheKey = getUserCacheKey(userId)
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
+    localStorage.setItem(cacheKey, JSON.stringify({
       data,
       timestamp: Date.now()
     }))
-    console.log('[RecommendationContext] Cache saved')
+    console.log('[RecommendationContext] Cache saved for user:', userId)
   } catch {
     // ignore storage errors
   }
 }
 
-function clearCache() {
+function clearCache(userId) {
+  const cacheKey = getUserCacheKey(userId)
   try {
-    localStorage.removeItem(CACHE_KEY)
+    localStorage.removeItem(cacheKey)
   } catch {
     // ignore
   }
 }
 
 export function RecommendationProvider({ children }) {
-  const { token } = useAuth()
+  const { user, token } = useAuth()
+  const userId = user?.id
   const [state, setState] = useState(() => {
-    const cached = getCache()
+    const cached = getCache(userId)
     if (cached) {
-      console.log('[RecommendationContext] Loaded from cache:', cached)
+      console.log('[RecommendationContext] Loaded from cache for user:', userId, cached)
       return { ...INITIAL_STATE, ...cached }
     }
     console.log('[RecommendationContext] No cache, using initial state')
@@ -121,6 +130,23 @@ export function RecommendationProvider({ children }) {
 
     void fetchDefaultCity()
   }, [])
+
+  // 用户切换时清理缓存并重置状态
+  useEffect(() => {
+    if (userId) {
+      // 用户已登录，加载该用户的缓存
+      const cached = getCache(userId)
+      if (cached) {
+        console.log('[RecommendationContext] User changed, loaded cache for user:', userId)
+        setState(prev => ({ ...INITIAL_STATE, ...cached }))
+      } else {
+        // 没有该用户的缓存，清空状态
+        console.log('[RecommendationContext] User changed, no cache for user:', userId)
+        clearCache(userId)
+        setState(prev => ({ ...INITIAL_STATE, selectedCity: prev.selectedCity }))
+      }
+    }
+  }, [userId])
 
   const fetchRecommendation = useCallback(async (location, preferredName = null, goal = '') => {
     if (!location) {
@@ -207,7 +233,7 @@ export function RecommendationProvider({ children }) {
         selectedCity: newSelectedCity,
         recordId: data.record_id || null,
         isFavorited: data.is_favorited || false
-      })
+      }, userId)
 
       return data
     } catch (error) {
@@ -220,7 +246,7 @@ export function RecommendationProvider({ children }) {
       }
       return null
     }
-  }, [])
+  }, [token, userId])
 
   const toggleFavorite = useCallback(async () => {
     if (!state.recordId) return

@@ -187,7 +187,7 @@ def generate_dynamic_horoscope(sign_key: str, weather: WeatherInfo, today: str) 
         "在感情方面今天表现平稳，单身者可能会有新的邂逅。",
         "今天的状态非常适合处理之前拖延的事项，效率会比较高。",
         "需要注意健康管理，适当运动和休息会让你更有活力。",
-        "今天在创意方面有不错的灵感，适合做一些 творческой工作。",
+        "今天在创意方面有不错的灵感，适合做一些创意类工作。",
         "和身边的人相处时保持耐心倾听，这会让你收获更多友谊。",
     ]
     description = descriptions[date_hash % len(descriptions)]
@@ -324,6 +324,9 @@ aztro 原始数据：
                 headers={
                     "Authorization": f"Bearer {config.api_key}",
                     "Content-Type": "application/json",
+                    "User-Agent": "Claude/4.0 (Claude Code)",
+                    "anthropic-client": "aiwardrobe",
+                    "xanthropic-client": "ClaudeCode/4.0"
                 },
                 json=payload,
             )

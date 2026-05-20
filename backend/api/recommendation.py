@@ -7,6 +7,7 @@ from typing import Optional
 from services.weather import get_weather, normalize_location_request, DEFAULT_LOCATION_QUERY
 from services.recommendation import get_ai_recommendation
 from services.auth import CurrentUser, get_current_user
+from storage.db import get_user_settings
 from api.recommendation_extra import save_recommendation_record
 from pydantic import BaseModel, Field
 
@@ -69,6 +70,16 @@ async def get_outfit_recommendation(
 
     if not weather:
         raise HTTPException(status_code=500, detail="获取天气信息失败")
+
+    # 如果没有临时指定星座，从用户设置中获取，再从全局配置获取
+    if not zodiac_sign:
+        user_settings = await get_user_settings(current_user.user_id)
+        if user_settings:
+            zodiac_sign = user_settings.get("zodiac_sign")
+        if not zodiac_sign:
+            from storage.config_store import load_config
+            config = load_config()
+            zodiac_sign = config.zodiac_sign if config.zodiac_sign and len(config.zodiac_sign) <= 10 else ""
 
     # 获取AI推荐
     recommendation = await get_ai_recommendation(weather, zodiac_sign=zodiac_sign, goal=goal, user_id=current_user.user_id)

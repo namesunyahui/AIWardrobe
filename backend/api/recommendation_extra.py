@@ -108,13 +108,13 @@ async def get_favorites(
             for fav, rec in paginated:
                 items.append({
                     "id": rec.id,
-                    "record_date": rec.record_date.isoformat() if rec.record_date else None,
+                    "record_date": rec.record_date,
                     "weather_location": rec.weather_location,
                     "recommendation_text": rec.recommendation_text,
                     "outfit_summary": rec.outfit_summary,
                     "goal_raw": rec.goal_raw,
-                    "created_at": rec.created_at.isoformat() if rec.created_at else None,
-                    "favorited_at": fav.created_at.isoformat() if fav.created_at else None,
+                    "created_at": rec.created_at.isoformat() if hasattr(rec.created_at, 'isoformat') else rec.created_at,
+                    "favorited_at": fav.created_at.isoformat() if hasattr(fav.created_at, 'isoformat') else fav.created_at,
                 })
 
         return {

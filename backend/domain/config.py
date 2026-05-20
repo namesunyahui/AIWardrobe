@@ -7,9 +7,9 @@ from typing import Optional, List, Literal
 
 class LLMConfig(BaseModel):
     """LLM API 配置"""
-    api_base: str = "https://x666.me/v1"
-    api_key: str = "sk-F8oPcW8b5pgRtrmnR0ymh6yxCG6yCW3Gft7H3x792r3kn4Fi"
-    model: str = "gemini-flash-latest"
+    api_base: str = "https://aigw-gzgy2.cucloud.cn:8443"
+    api_key: str = "sk-sp-L7xYzRDc80P29AM6Z3A1YpB3dyOB1WuN"
+    model: str = "kimi-k2.5"
     # remove.bg 配置
     removebg_api_key: str = "mcigdPJZy9oU6c2SMiEwj9VA"
     bg_removal_method: Literal["local", "removebg"] = "removebg"  # 本地 rembg 或 remove.bg API

@@ -35,7 +35,9 @@ async def fetch_available_models() -> List[dict]:
                 headers={
                     "Authorization": f"Bearer {config.api_key}",
                     "Content-Type": "application/json",
-                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    "User-Agent": "Claude/4.0 (Claude Code)",
+                    "anthropic-client": "aiwardrobe",
+                    "xanthropic-client": "ClaudeCode/4.0"
                 }
             )
             
@@ -206,7 +208,10 @@ async def analyze_clothes_openai(image_bytes: bytes) -> ClothesSemantics:
                     url,
                     headers={
                         "Authorization": f"Bearer {config.api_key}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "User-Agent": "Claude/4.0 (Claude Code)",
+                        "anthropic-client": "aiwardrobe",
+                        "xanthropic-client": "ClaudeCode/4.0"
                     },
                     json=payload
                 )
@@ -266,7 +271,10 @@ async def analyze_clothes_openai(image_bytes: bytes) -> ClothesSemantics:
                             url,
                             headers={
                                 "Authorization": f"Bearer {config.api_key}",
-                                "Content-Type": "application/json"
+                                "Content-Type": "application/json",
+                                "User-Agent": "Claude/4.0 (Claude Code)",
+                                "anthropic-client": "aiwardrobe",
+                                "xanthropic-client": "ClaudeCode/4.0"
                             },
                             json=correction_payload
                         )

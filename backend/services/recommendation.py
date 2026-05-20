@@ -614,6 +614,9 @@ async def get_llm_recommendation(
                 headers={
                     "Authorization": f"Bearer {config.api_key}",
                     "Content-Type": "application/json",
+                    "User-Agent": "Claude/4.0 (Claude Code)",
+                    "anthropic-client": "aiwardrobe",
+                    "xanthropic-client": "ClaudeCode/4.0"
                 },
                 json=payload,
             )

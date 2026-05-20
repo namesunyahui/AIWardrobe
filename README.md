@@ -56,7 +56,7 @@ Upload clothing photos, remove backgrounds automatically, classify garments with
 
 <table>
 <tr><td><b>Frontend</b></td><td>React + Vite + Tailwind CSS</td></tr>
-<tr><td><b>Backend</b></td><td>FastAPI + MySQL/SQLite</td></tr>
+<tr><td><b>Backend</b></td><td>FastAPI + MySQL</td></tr>
 <tr><td><b>AI</b></td><td>Google Gemini / OpenAI-compatible APIs + rembg</td></tr>
 <tr><td><b>Deploy</b></td><td>Docker / Docker Compose (amd64 & arm64)</td></tr>
 </table>
@@ -122,26 +122,66 @@ cd frontend && npm run dev
 
 ## 🐳 Docker Deployment
 
+### Configuration
+
+All configuration is managed via `backend/.env` file, which is automatically bundled into the image:
+- MySQL database configuration
+- MinIO object storage configuration
+- LLM API configuration (model, API key)
+- QWeather API configuration
+- Initial admin account
+
+### Prerequisites
+
+1. **MySQL Database**: Create an empty database first
+```sql
+CREATE DATABASE aiwardrobe CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+2. **MinIO Object Storage**: For image storage (optional)
+
+### Build Image
+
+```bash
+# Build image
+docker build -t aiwardrobe:latest .
+
+# Package as tar file (for transferring to server)
+docker save -o aiwardrobe.tar aiwardrobe:latest
+```
+
+### Deploy to Server
+
+```bash
+# Option 1: Push to registry (requires docker login first)
+docker tag aiwardrobe:latest ghcr.io/namesunyahui/aiwardrobe:latest
+docker push ghcr.io/namesunyahui/aiwardrobe:latest
+
+# Option 2: Deploy via tar file
+# 1. Upload aiwardrobe.tar to server
+# 2. Load image on server
+docker load -i aiwardrobe.tar
+
+# 3. Run container (config is bundled in the image)
+docker run -d --name aiwardrobe -p 8000:8000 aiwardrobe:latest
+```
+
 ### Quick Start (Local Build)
 
 ```bash
 cp backend/.env.example backend/.env
-# Edit .env with your API keys and MinIO configuration
+# Edit .env with your API keys and database configuration
 docker build -t aiwardrobe:local .
-docker run -d --name ai_wardrobe -p 8000:8000 \
-  --env-file backend/.env \
-  -v $(pwd)/backend/data:/app/backend/data \
-  aiwardrobe:local
+docker run -d --name ai_wardrobe -p 8000:8000 aiwardrobe:local
 ```
+
+> Note: The `.env` file is bundled into the image with all configurations.
 
 ### Using Prebuilt Image
 
 ```bash
 docker pull ghcr.io/namesunyahui/aiwardrobe:latest
-docker run -d --name ai_wardrobe -p 8000:8000 \
-  --env-file backend/.env \
-  -v $(pwd)/backend/data:/app/backend/data \
-  ghcr.io/namesunyahui/aiwardrobe:latest
+docker run -d --name ai_wardrobe -p 8000:8000 ghcr.io/namesunyahui/aiwardrobe:latest
 ```
 
 ### Docker Compose

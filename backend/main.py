@@ -2,6 +2,9 @@
 AI 智能衣柜 - FastAPI 后端入口
 """
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

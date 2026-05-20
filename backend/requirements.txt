@@ -2,7 +2,6 @@ fastapi
 uvicorn[standard]
 python-multipart
 pillow
-aiosqlite
 aiomysql
 sqlalchemy
 PyMySQL

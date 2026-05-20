@@ -269,8 +269,20 @@
     "logout": "退出登录",
     "register": "注册",
     "username": "用户名",
+    "email": "邮箱",
     "password": "密码",
+    "confirmPassword": "确认密码",
+    "nickname": "昵称",
     "noAccount": "还没有账号？",
-    "hasAccount": "已有账号？"
+    "hasAccount": "已有账号？",
+    "registerSubtitle": "创建您的账号",
+    "usernamePlaceholder": "3-20位字母数字下划线",
+    "emailPlaceholder": "example@email.com",
+    "passwordPlaceholder": "至少6位",
+    "confirmPasswordPlaceholder": "再次输入密码",
+    "nicknamePlaceholder": "默认使用用户名",
+    "passwordMismatch": "两次输入的密码不一致",
+    "passwordTooShort": "密码至少6位",
+    "optional": "(可选)"
   }
 }

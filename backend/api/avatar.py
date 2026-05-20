@@ -51,9 +51,8 @@ async def upload_avatar(
         # 更新用户头像记录
         await update_user_profile(current_user.user_id, avatar_key=image_key)
 
-        # 获取预签名 URL
-        service = get_minio_service()
-        avatar_url = service.get_presigned_url(image_key)
+        # 返回后端代理的图片 URL，解决跨域问题
+        avatar_url = f"/api/images/proxy/{image_key}"
 
         return {"avatar_url": avatar_url, "image_key": image_key}
 
@@ -70,8 +69,8 @@ async def get_avatar(current_user: CurrentUser = Depends(get_current_user)):
     if not user or not user.get("avatar_key"):
         return {"avatar_url": None, "image_key": None}
 
-    service = get_minio_service()
-    avatar_url = service.get_presigned_url(user["avatar_key"])
+    # 返回后端代理的图片 URL，解决跨域问题
+    avatar_url = f"/api/images/proxy/{user['avatar_key']}"
 
     return {"avatar_url": avatar_url, "image_key": user["avatar_key"]}
 

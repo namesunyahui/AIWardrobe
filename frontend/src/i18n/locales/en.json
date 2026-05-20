@@ -269,8 +269,20 @@
     "logout": "Logout",
     "register": "Register",
     "username": "Username",
+    "email": "Email",
     "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "nickname": "Nickname",
     "noAccount": "Don't have an account?",
-    "hasAccount": "Already have an account?"
+    "hasAccount": "Already have an account?",
+    "registerSubtitle": "Create your account",
+    "usernamePlaceholder": "3-20 characters, letters, numbers, underscore",
+    "emailPlaceholder": "example@email.com",
+    "passwordPlaceholder": "At least 6 characters",
+    "confirmPasswordPlaceholder": "Re-enter password",
+    "nicknamePlaceholder": "Default is username",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "optional": "(optional)"
   }
 }

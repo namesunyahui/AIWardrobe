@@ -3,9 +3,6 @@
 """
 import os
 import json
-import asyncio
-import aiosqlite
-from pathlib import Path
 from typing import Any, List, Optional
 from datetime import datetime
 
@@ -21,182 +18,11 @@ from storage.models_mysql import (
 )
 from services.minio import get_minio_service
 
-# SQLite 旧数据路径（用于迁移）
-_default_sqlite_path = Path(__file__).parent.parent / "wardrobe.db"
-SQLITE_DB_PATH = Path(os.getenv("DB_FILE_PATH", _default_sqlite_path))
-
-# 为了兼容性，导出 DB_PATH
-DB_PATH = SQLITE_DB_PATH
-
 
 async def init_db_with_migration():
-    """初始化数据库并迁移旧数据（如果需要）"""
-    # 初始化 MySQL 表结构
+    """初始化数据库"""
     from storage.database import init_db as db_init
     await db_init()
-
-    # 检查是否需要从 SQLite 迁移数据
-    if SQLITE_DB_PATH.exists() and SQLITE_DB_PATH.stat().st_size > 0:
-        await migrate_from_sqlite()
-
-
-async def migrate_from_sqlite():
-    """从 SQLite 迁移数据到 MySQL"""
-    try:
-        import aiosqlite
-
-        # 检查 MySQL 是否已有数据
-        async_session_maker = get_session_maker()
-        async with async_session_maker() as session:
-            result = await session.execute(select(User).limit(1))
-            if result.scalar_one_or_none():
-                return  # MySQL 已有数据，跳过迁移
-
-        # 检查 SQLite 是否有数据
-        async with aiosqlite.connect(SQLITE_DB_PATH) as sqlite_db:
-            cursor = await sqlite_db.execute("SELECT COUNT(*) FROM clothes")
-            count = (await cursor.fetchone())[0]
-            if count == 0:
-                return  # SQLite 没有数据
-
-            print(f"检测到 SQLite 旧数据，开始迁移...")
-
-            # 迁移用户
-            await _migrate_users_sqlite(sqlite_db)
-
-            # 迁移用户设置
-            await _migrate_user_settings_sqlite(sqlite_db)
-
-            # 迁移衣物
-            await _migrate_clothes_sqlite(sqlite_db)
-
-            # 迁移星座运势
-            await _migrate_horoscope_sqlite(sqlite_db)
-
-            print("数据迁移完成！")
-
-    except Exception as e:
-        print(f"迁移过程中出错: {e}")
-
-
-async def _migrate_users_sqlite(sqlite_db):
-    """迁移用户数据"""
-    sqlite_db.row_factory = aiosqlite.Row
-    cursor = await sqlite_db.execute(
-        "SELECT * FROM users WHERE is_deleted = 0"
-    )
-    users = await cursor.fetchall()
-
-    if not users:
-        return
-
-    async_session_maker = get_session_maker()
-    async with async_session_maker() as session:
-        for user in users:
-            session.add(User(
-                username=user["username"],
-                email=user["email"],
-                password_hash=user["password_hash"],
-                nickname=user["nickname"],
-                avatar_key=user["avatar_key"],
-                role=user["role"] or "user",
-                is_active=bool(user["is_active"]) if user["is_active"] is not None else True,
-                is_deleted=bool(user["is_deleted"]) if user["is_deleted"] is not None else False,
-                created_at=datetime.fromisoformat(user["created_at"]) if user["created_at"] else datetime.now(),
-                updated_at=datetime.fromisoformat(user["updated_at"]) if user["updated_at"] else datetime.now()
-            ))
-        await session.commit()
-
-    print(f"迁移了 {len(users)} 个用户")
-
-
-async def _migrate_user_settings_sqlite(sqlite_db):
-    """迁移用户设置"""
-    sqlite_db.row_factory = aiosqlite.Row
-    cursor = await sqlite_db.execute("SELECT * FROM user_settings")
-    settings = await cursor.fetchall()
-
-    if not settings:
-        return
-
-    async_session_maker = get_session_maker()
-    async with async_session_maker() as session:
-        for s in settings:
-            session.add(UserSettings(
-                user_id=s["user_id"],
-                theme=s["theme"] or "light",
-                language=s["language"] or "zh-CN",
-                default_location=s["default_location"],
-                zodiac_sign=s["zodiac_sign"],
-                temperature_unit=s["temperature_unit"] or "celsius",
-                notification_enabled=bool(s["notification_enabled"]) if s["notification_enabled"] is not None else True,
-                created_at=datetime.fromisoformat(s["created_at"]) if s["created_at"] else datetime.now(),
-                updated_at=datetime.fromisoformat(s["updated_at"]) if s["updated_at"] else datetime.now()
-            ))
-        await session.commit()
-
-    print(f"迁移了 {len(settings)} 条用户设置")
-
-
-async def _migrate_clothes_sqlite(sqlite_db):
-    """迁移衣物数据"""
-    sqlite_db.row_factory = aiosqlite.Row
-    cursor = await sqlite_db.execute("SELECT * FROM clothes")
-    clothes = await cursor.fetchall()
-
-    if not clothes:
-        return
-
-    async_session_maker = get_session_maker()
-    async with async_session_maker() as session:
-        for c in clothes:
-            session.add(Clothes(
-                user_id=c["user_id"] if c["user_id"] else 1,
-                category=c["category"],
-                item=c["item"],
-                style_semantics=c["style_semantics"],
-                season_semantics=c["season_semantics"],
-                usage_semantics=c["usage_semantics"],
-                color_semantics=c["color_semantics"],
-                description=c["description"],
-                image_key=c["image_key"] or c["image_filename"],
-                image_filename=c["image_filename"],
-                created_at=datetime.fromisoformat(c["created_at"]) if c["created_at"] else datetime.now(),
-                updated_at=datetime.fromisoformat(c["updated_at"]) if c["updated_at"] else datetime.now()
-            ))
-        await session.commit()
-
-    print(f"迁移了 {len(clothes)} 件衣物")
-
-
-async def _migrate_horoscope_sqlite(sqlite_db):
-    """迁移星座运势数据"""
-    sqlite_db.row_factory = aiosqlite.Row
-    cursor = await sqlite_db.execute("SELECT * FROM horoscope_records")
-    records = await cursor.fetchall()
-
-    if not records:
-        return
-
-    async_session_maker = get_session_maker()
-    async with async_session_maker() as session:
-        for r in records:
-            session.add(HoroscopeRecord(
-                user_id=r["user_id"] if r["user_id"] else 1,
-                record_date=r["record_date"],
-                zodiac_sign=r["zodiac_sign"],
-                zodiac_name=r["zodiac_name"],
-                source_provider=r["source_provider"],
-                source_payload=r["source_payload"],
-                llm_status=r["llm_status"] or "pending",
-                llm_reasoning=r["llm_reasoning"],
-                llm_error=r["llm_error"],
-                created_at=datetime.fromisoformat(r["created_at"]) if r["created_at"] else datetime.now(),
-                updated_at=datetime.fromisoformat(r["updated_at"]) if r["updated_at"] else datetime.now()
-            ))
-        await session.commit()
-
-    print(f"迁移了 {len(records)} 条星座运势记录")
 
 
 # ========== 衣物 CRUD ==========
@@ -387,9 +213,8 @@ def _db_clothes_to_item(row: Clothes) -> ClothesItem:
     # 如果文件名不包含用户ID前缀，则添加
     if filename and "/" not in filename:
         filename = f"{row.user_id}/clothes/{filename}"
-    # 使用 MinIO 服务获取图片 URL
-    minio_service = get_minio_service()
-    image_url = minio_service.get_image_url(filename)
+    # 使用后端代理图片 URL，解决跨域问题
+    image_url = f"/api/images/proxy/{filename}"
     return ClothesItem(
         id=row.id,
         category=row.category,
@@ -517,7 +342,11 @@ async def create_user(username: str, email: str, password_hash: str, nickname: s
         await session.flush()
 
         # 创建默认用户设置
-        settings = UserSettings(user_id=user.id)
+        settings = UserSettings(
+            user_id=user.id,
+            zodiac_sign="aries",
+            default_location="上海, 上海市, 中国",
+        )
         session.add(settings)
         await session.commit()
         return user.id
@@ -965,7 +794,6 @@ async def delete_recommendation_record(record_id: int, user_id: int) -> bool:
 
 # ========== 兼容性函数（供旧代码调用）==========
 
-# 为了兼容性，保留这些函数但指向新实现
 async def init_db():
     """初始化数据库（兼容旧代码）"""
     await init_db_with_migration()

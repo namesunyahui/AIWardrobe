@@ -30,12 +30,12 @@ export default function Register() {
 
         // 验证密码
         if (formData.password !== formData.confirmPassword) {
-            setError('两次输入的密码不一致')
+            setError(t('auth.passwordMismatch'))
             return
         }
 
         if (formData.password.length < 6) {
-            setError('密码至少6位')
+            setError(t('auth.passwordTooShort'))
             return
         }
 
@@ -74,7 +74,7 @@ export default function Register() {
                     <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                         {t('auth.register')}
                     </h1>
-                    <p className="text-sm text-zinc-500 mt-1">创建您的账号</p>
+                    <p className="text-sm text-zinc-500 mt-1">{t('auth.registerSubtitle')}</p>
                 </div>
 
                 {/* Form */}
@@ -90,11 +90,11 @@ export default function Register() {
                             value={formData.username}
                             onChange={handleChange}
                             className="input-field mt-1.5"
-                            placeholder="3-20位字母数字下划线"
+                            placeholder={t('auth.usernamePlaceholder')}
                             required
                             minLength={3}
                             maxLength={20}
-                            pattern="^\w+$"
+                            pattern="^[a-zA-Z0-9_一-鿿]+$"
                         />
                     </div>
 
@@ -109,7 +109,7 @@ export default function Register() {
                             value={formData.email}
                             onChange={handleChange}
                             className="input-field mt-1.5"
-                            placeholder="example@email.com"
+                            placeholder={t('auth.emailPlaceholder')}
                             required
                         />
                     </div>
@@ -126,7 +126,7 @@ export default function Register() {
                                 value={formData.password}
                                 onChange={handleChange}
                                 className="input-field pr-10"
-                                placeholder="至少6位"
+                                placeholder={t('auth.passwordPlaceholder')}
                                 required
                                 minLength={6}
                             />
@@ -151,7 +151,7 @@ export default function Register() {
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             className="input-field mt-1.5"
-                            placeholder="再次输入密码"
+                            placeholder={t('auth.confirmPasswordPlaceholder')}
                             required
                         />
                     </div>
@@ -159,7 +159,7 @@ export default function Register() {
                     {/* 昵称 */}
                     <div>
                         <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            {t('auth.nickname')} <span className="text-zinc-400">(可选)</span>
+                            {t('auth.nickname')} <span className="text-zinc-400">{t('auth.optional')}</span>
                         </label>
                         <input
                             type="text"
@@ -167,7 +167,7 @@ export default function Register() {
                             value={formData.nickname}
                             onChange={handleChange}
                             className="input-field mt-1.5"
-                            placeholder="默认使用用户名"
+                            placeholder={t('auth.nicknamePlaceholder')}
                         />
                     </div>
 

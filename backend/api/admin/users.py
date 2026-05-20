@@ -18,9 +18,28 @@ from storage.database import get_session_maker
 from storage.models_mysql import User, Clothes
 from services.minio import get_minio_service
 from domain.users import UserResponse
-from domain.constants import ROLE_ADMIN, ROLE_SUPERADMIN
+from domain.constants import ROLE_ADMIN, ROLE_SUPERADMIN, ROLE_USER
 
 router = APIRouter()
+
+
+@router.get("/image/{image_key:path}")
+async def get_admin_image(
+    image_key: str,
+):
+    """
+    管理员图片代理 - 解决跨域问题，返回302重定向
+    """
+    from services.minio import MINIO_ENDPOINT, MINIO_BUCKET
+    from fastapi.responses import RedirectResponse
+
+    # 验证 image_key 格式
+    if ".." in image_key or image_key.startswith("/"):
+        raise HTTPException(status_code=400, detail="无效的图片路径")
+
+    # 直接重定向到 MinIO URL
+    minio_url = f"http://{MINIO_ENDPOINT}/{MINIO_BUCKET}/{image_key}"
+    return RedirectResponse(url=minio_url, status_code=302)
 
 
 @router.get("/users")
@@ -109,6 +128,14 @@ async def get_user(
         clothes = result.scalars().all()
 
     minio_service = get_minio_service()
+    # 返回后端代理的图片 URL，解决跨域问题
+    clothes_list = []
+    for c in clothes:
+        image_key = c.image_key or c.image_filename
+        # 使用后端代理接口
+        image_url = f"/api/admin/image/{image_key}"
+        clothes_list.append({"id": c.id, "category": c.category, "item": c.item, "image_url": image_url})
+
     return {
         "id": user["id"],
         "username": user["username"],
@@ -118,7 +145,7 @@ async def get_user(
         "is_active": user["is_active"],
         "created_at": user["created_at"],
         "clothes_count": clothes_count,
-        "clothes": [{"id": c.id, "category": c.category, "item": c.item, "image_url": minio_service.get_image_url(c.image_key or c.image_filename)} for c in clothes]
+        "clothes": clothes_list
     }
 
 
